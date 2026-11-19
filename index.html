@@ -115,6 +115,11 @@ p{margin:0}
   transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 30%, #fff, var(--bone) 55%, #d9cbb2);
   box-shadow:0 3px 8px rgba(0,0,0,.55);z-index:2;
 }
+.neck .bar{ /* ברה: אצבע אחת שלוחצת על כמה מיתרים */
+  position:absolute;top:calc(var(--y)*100%);left:calc(var(--l)*100% - 15px);width:calc(var(--wd)*100% + 30px);height:30px;
+  transform:translateY(-50%);border-radius:15px;z-index:2;
+  background:linear-gradient(#fff, var(--bone) 55%, #d9cbb2);box-shadow:0 3px 8px rgba(0,0,0,.55);
+}
 .neck .mk{position:absolute;left:calc(var(--x)*100%);bottom:9px;transform:translateX(-50%);width:18px;height:18px}
 .neck .mk.o{border:2.5px solid var(--bone);border-radius:50%}
 .neck .mk.x svg{width:18px;height:18px;stroke:var(--red);stroke-width:3;stroke-linecap:round;fill:none;display:block}
@@ -153,6 +158,9 @@ p{margin:0}
 .star{width:17px;height:17px;fill:var(--dim)}
 .star.on{fill:var(--brass)}
 .lv-best{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.lv.ultra .lv-n{background:var(--brass);border-color:var(--brass);color:var(--brass-ink)}
+.lv.ultra .lv-n svg{width:24px;height:24px;fill:var(--brass-ink)}
+.lv.ultra .lv-name{color:var(--brass)}
 .lv.locked{opacity:.5}
 .lv.locked .lv-side .icon{width:22px;height:22px;color:var(--muted)}
 .lv-note{color:var(--dim);font-size:13px;text-align:center;margin-top:18px}
@@ -344,6 +352,7 @@ fieldset.row legend{float:left;padding:0}
         <input type="radio" name="level" id="lvHard" value="hard"><label for="lvHard">Hard</label>
       </div>
     </fieldset>
+    <label class="row sw"><span>Open all levels</span><input type="checkbox" id="optAllOpen"><i></i></label>
     <label class="row sw"><span>Left hand</span><input type="checkbox" id="optLefty"><i></i></label>
     <label class="row sw"><span>No timer</span><input type="checkbox" id="optNoTimer"><i></i></label>
     <label class="row sw"><span>Sound</span><input type="checkbox" id="optSound"><i></i></label>
@@ -367,20 +376,45 @@ var Engine = (function () {
   function sstep(lo, hi, x) { var t = (x - lo) / (hi - lo); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
 
   // שריג לכל מיתר, מהעבה לדק. ‎-1 = לא מנגנים (איקס), 0 = מיתר פתוח
+  // כשלאותו שם יש שתי צורות, הצורה השנייה מקבל סימון אחרי @ (למשל A5@5 = A5 בשריג 5). השם על המסך בלי הסימון
   var CHORDS = {
-    Em: [0, 2, 2, 0, 0, 0], Am: [-1, 0, 2, 2, 1, 0], E: [0, 2, 2, 1, 0, 0], A: [-1, 0, 2, 2, 2, 0],
-    G: [3, 2, 0, 0, 0, 3], C: [-1, 3, 2, 0, 1, 0], D: [-1, -1, 0, 2, 3, 2],
-    Dm: [-1, -1, 0, 2, 3, 1], A7: [-1, 0, 2, 0, 2, 0], E7: [0, 2, 0, 1, 0, 0], D7: [-1, -1, 0, 2, 1, 2],
-    E5: [0, 2, 2, -1, -1, -1], A5: [-1, 0, 2, 2, -1, -1], D5: [-1, -1, 0, 2, 3, -1], G5: [3, 5, 5, -1, -1, -1],
-    Cadd9: [-1, 3, 2, 0, 3, 3], Dsus2: [-1, -1, 0, 2, 3, 0], Dsus4: [-1, -1, 0, 2, 3, 3], Asus2: [-1, 0, 2, 2, 0, 0], Em7: [0, 2, 2, 0, 3, 0]
+    G: [3, 2, 0, 0, 0, 3], D: [-1, -1, 0, 2, 3, 2], Em: [0, 2, 2, 0, 0, 0], C: [-1, 3, 2, 0, 1, 0],
+    A: [-1, 0, 2, 2, 2, 0], E: [0, 2, 2, 1, 0, 0], Am: [-1, 0, 2, 2, 1, 0], F: [-1, -1, 3, 2, 1, 1], Dm: [-1, -1, 0, 2, 3, 1],
+    G5: [3, 5, 5, -1, -1, -1], D5: [-1, -1, 0, 2, 3, -1], E5: [0, 2, 2, -1, -1, -1], C5: [-1, 3, 5, 5, -1, -1], A5: [-1, 0, 2, 2, -1, -1],
+    G7: [3, 2, 0, 0, 0, 1], A7: [-1, 0, 2, 0, 2, 0], E7: [0, 2, 0, 1, 0, 0], D7: [-1, -1, 0, 2, 1, 2], B7: [-1, 2, 1, 2, 0, 2],
+    'G@fam': [3, 2, 0, 0, 3, 3], Cadd9: [-1, 3, 2, 0, 3, 3], Em7: [0, 2, 2, 0, 3, 3], Dsus4: [-1, -1, 0, 2, 3, 3], A7sus4: [-1, 0, 2, 0, 3, 3],
+    Cmaj7: [-1, 3, 2, 0, 0, 0], Fmaj7: [-1, -1, 3, 2, 1, 0], Amaj7: [-1, 0, 2, 1, 2, 0], Dmaj7: [-1, -1, 0, 2, 2, 2], Gmaj7: [3, 2, 0, 0, 0, 2],
+    F5: [1, 3, 3, -1, -1, -1], Bb5: [-1, 1, 3, 3, -1, -1], 'A5@5': [5, 7, 7, -1, -1, -1], Eb5: [-1, 6, 8, 8, -1, -1], 'D5@5': [-1, 5, 7, 7, -1, -1],
+    'F#5': [2, 4, 4, -1, -1, -1], 'C#5': [-1, 4, 6, 6, -1, -1], 'G#5': [4, 6, 6, -1, -1, -1], B5: [-1, 2, 4, 4, -1, -1], 'E5@7': [-1, 7, 9, 9, -1, -1],
+    B: [-1, 2, 4, 4, 4, 2], Bm: [-1, 2, 4, 4, 3, 2], 'C@a': [-1, 3, 5, 5, 5, 3], Cm: [-1, 3, 5, 5, 4, 3], 'D@a': [-1, 5, 7, 7, 7, 5], 'D#': [-1, 6, 8, 8, 8, 6],
+    Bb: [-1, 1, 3, 3, 3, 1], Bbm: [-1, 1, 3, 3, 2, 1], 'C#': [-1, 4, 6, 6, 6, 4], 'C#m': [-1, 4, 6, 6, 5, 4], 'Dm@a': [-1, 5, 7, 7, 6, 5],
+    'F@e': [1, 3, 3, 2, 1, 1], Fm: [1, 3, 3, 1, 1, 1], 'G@e': [3, 5, 5, 4, 3, 3], Gm: [3, 5, 5, 3, 3, 3], 'Am@e': [5, 7, 7, 5, 5, 5],
+    'F#': [2, 4, 4, 3, 2, 2], 'F#m': [2, 4, 4, 2, 2, 2], 'G#': [4, 6, 6, 5, 4, 4], 'G#m': [4, 6, 6, 4, 4, 4], 'A@e': [5, 7, 7, 6, 5, 5]
   };
+  // הסדר והאקורדים כמו במקור (לפי צילומי המסך של ניב והסרטון מהמחקר). id קבוע, כדי שההתקדמות השמורה לא תתבלבל אם הרשימה תשתנה
   var GROUPS = [
-    { name: 'First Steps', chords: ['Em', 'Am', 'E', 'A'] },
-    { name: 'Song Chords', chords: ['G', 'C', 'D', 'Em'] },
-    { name: 'More Open Chords', chords: ['Dm', 'A7', 'E7', 'D7'] },
-    { name: 'Power Chords', chords: ['E5', 'A5', 'D5', 'G5'] },
-    { name: 'Color Chords', chords: ['Cadd9', 'Dsus2', 'Dsus4', 'Asus2', 'Em7'] }
+    { id: 'basic', name: 'Basic Chords', chords: ['G', 'D', 'Em', 'C'] },
+    { id: 'open', name: 'Open Chords', chords: ['A', 'E', 'Am', 'F', 'Dm'] },
+    { id: 'power', name: 'Power Chords', chords: ['G5', 'D5', 'E5', 'C5', 'A5'] },
+    { id: '7th', name: '7th Chords', chords: ['G7', 'A7', 'E7', 'D7', 'B7'] },
+    { id: 'gfam', name: 'G Family Chords', chords: ['G@fam', 'Cadd9', 'Em7', 'Dsus4', 'A7sus4'] },
+    { id: 'maj7', name: 'Major 7th Chords', chords: ['Cmaj7', 'Fmaj7', 'Amaj7', 'Dmaj7', 'Gmaj7'] },
+    { id: 'power2', name: 'More Power Chords\u00a01', chords: ['F5', 'Bb5', 'A5@5', 'Eb5', 'D5@5'] },
+    { id: 'power3', name: 'More Power Chords\u00a02', chords: ['F#5', 'C#5', 'G#5', 'B5', 'E5@7'] },
+    { id: 'ashape1', name: 'A Shape Chords\u00a01', chords: ['B', 'Bm', 'C@a', 'Cm', 'D@a', 'D#'] },
+    { id: 'ashape2', name: 'A Shape Chords\u00a02', chords: ['Bb', 'Bbm', 'C#', 'C#m', 'Dm@a'] },
+    { id: 'eshape1', name: 'E Shape Chords\u00a01', chords: ['F@e', 'Fm', 'G@e', 'Gm', 'Am@e'] },
+    { id: 'eshape2', name: 'E Shape Chords\u00a02', chords: ['F#', 'F#m', 'G#', 'G#m', 'A@e'] }
   ];
+  function nameOf(id) { return id.split('@')[0]; }
+  // בשם ברשימה: A5(5th) = A5 בשריג 5, כמו במקור
+  function labelOf(id) { var p = id.split('@'); return /^\d+$/.test(p[1] || '') ? p[0] + '(' + p[1] + 'th)' : p[0]; }
+  // שלב האולטרה: כל האקורדים מכל שלב שקיבל 5 כוכבים, בלי כפילויות
+  function collected(stars) {
+    var out = [];
+    GROUPS.forEach(function (g) { if ((stars[g.id] || 0) >= 5) g.chords.forEach(function (c) { if (out.indexOf(c) < 0) out.push(c); }); });
+    return out;
+  }
   var STAR_AT = [5, 10, 20, 30, 40];
   var ROUND_SECONDS = 40, COMBO_SIZE = 3, COMBO_BONUS = 5;
 
@@ -409,13 +443,14 @@ var Engine = (function () {
     });
     // צלילים "מותרים": צלילי האקורד, וגם מיתר עם איקס שצלצל פתוח (לא מענישים עליו בגרסה הראשונה)
     var allowed = frets.map(function (f, i) { return hz(OPEN[i] + Math.max(f, 0)); });
+    // רק צלילי האקורד עצמו. מיתר עם איקס שצלצל לא "מסביר" צליל לא נכון באצבע אחרת
     function explained(F) {
-      return allowed.some(function (g) { for (var k = 1; k <= 8; k++) if (Math.abs(cents(F, k * g)) < 50) return true; return false; });
+      return notes.some(function (g) { if (g == null) return false; for (var k = 1; k <= 8; k++) if (Math.abs(cents(F, k * g)) < 50) return true; return false; });
     }
-    // צלילים במרחק חצי טון או טון מהצליל של המיתר, שלא שייכים לאקורד. אם הם נשמעים, האצבע על שריג לא נכון
+    // צלילים קרובים (עד 4 חצאי טון) לצליל של המיתר, שלא שייכים לאקורד. אם הם נשמעים, האצבע במקום לא נכון
     var nbrs = notes.map(function (f) {
       if (f == null) return [];
-      return [-2, -1, 1, 2].map(function (d) { return f * Math.pow(2, d / 12); }).filter(function (F) { return !explained(F); });
+      return [-4, -3, -2, -1, 1, 2, 3, 4].map(function (d) { return f * Math.pow(2, d / 12); }).filter(function (F) { return !explained(F); });
     });
     var required = notes.filter(function (f) { return f != null; }).length;
     return (cache[name] = { name: name, frets: frets, notes: notes, amb: amb, allowed: allowed, nbrs: nbrs, required: required });
@@ -561,12 +596,16 @@ var Engine = (function () {
     };
   }
   function starsFor(n) { return STAR_AT.filter(function (x) { return n >= x; }).length; }
-  // אקורד הבא: אקראי, אבל לא אותו אקורד פעמיים ברצף
-  function pickNext(list, prev, rnd) { var opts = list.filter(function (c) { return c !== prev; }); return opts[Math.floor(rnd() * opts.length)]; }
+  // אקורד הבא: אקראי, אבל לא אותו שם פעמיים ברצף (גם לא שתי צורות של G באולטרה)
+  function pickNext(list, prev, rnd) {
+    var opts = list.filter(function (c) { return prev == null || nameOf(c) !== nameOf(prev); });
+    if (!opts.length) opts = list;
+    return opts[Math.floor(rnd() * opts.length)];
+  }
 
   return { OPEN: OPEN, CHORDS: CHORDS, GROUPS: GROUPS, STAR_AT: STAR_AT, LEVELS: LEVELS, ROUND_SECONDS: ROUND_SECONDS,
     COMBO_SIZE: COMBO_SIZE, COMBO_BONUS: COMBO_BONUS, hz: hz, chordInfo: chordInfo, createListener: createListener,
-    createJudge: createJudge, starsFor: starsFor, pickNext: pickNext };
+    createJudge: createJudge, starsFor: starsFor, pickNext: pickNext, nameOf: nameOf, labelOf: labelOf, collected: collected };
 })();
 </script>
 
@@ -579,19 +618,30 @@ var Engine = (function () {
   var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- שמירת התקדמות בטלפון עצמו ----
-  var KEY = 'chord-check-v1';
+  // v2: השלבים השתנו, אז ההתקדמות נשמרת לפי שם השלב ולא לפי המיקום שלו. מהגרסה הקודמת לוקחים רק את ההגדרות
+  var KEY = 'chord-check-v2';
   var data = (function () {
     var d = null;
     try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-    if (!d || typeof d !== 'object') d = {};
-    if (!Array.isArray(d.best)) d.best = [];
-    if (!Array.isArray(d.stars)) d.stars = [];
-    d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true }, d.set || {});
+    if (!d || typeof d !== 'object') { d = {}; try { var old = JSON.parse(localStorage.getItem('chord-check-v1')); if (old && old.set) d.set = old.set; } catch (e) {} }
+    if (!d.best || typeof d.best !== 'object' || Array.isArray(d.best)) d.best = {};
+    if (!d.stars || typeof d.stars !== 'object' || Array.isArray(d.stars)) d.stars = {};
+    d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true, allOpen: false }, d.set || {});
     if (!E.LEVELS[d.set.level]) d.set.level = 'normal';
     return d;
   })();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
-  function isOpen(i) { return i === 0 || (data.stars[i - 1] || 0) >= 5; }
+  var ULTRA = 'ultra';
+  function idx(id) { for (var i = 0; i < E.GROUPS.length; i++) if (E.GROUPS[i].id === id) return i; return -1; }
+  function level(id) {
+    if (id === ULTRA) return { id: ULTRA, name: 'Ultra', chords: E.collected(data.stars) };
+    return E.GROUPS[idx(id)];
+  }
+  function isOpen(id) {
+    if (id === ULTRA) return E.collected(data.stars).length >= 2;
+    var i = idx(id);
+    return data.set.allOpen || i === 0 || (data.stars[E.GROUPS[i - 1].id] || 0) >= 5;
+  }
 
   // ---- מסכים ----
   var SCREENS = ['home', 'levels', 'count', 'play', 'results'];
@@ -608,13 +658,26 @@ var Engine = (function () {
     var base = top > 4 ? Math.min.apply(null, fretted) : 1;
     var keep = el.classList.contains('demo') ? ' demo' : '';
     el.className = 'neck' + keep + (lefty ? ' lefty' : '');
+    var X = function (i) { return ((lefty ? 5 - i : i) + 0.5) / 6; };
+    // ברה: אותו שריג נמוך בשני מיתרים רחוקים, וביניהם רק מיתרים לחוצים, לפחות אחד מהם גבוה יותר
+    var low = fretted.length ? Math.min.apply(null, fretted) : 0, at = [], barre = null;
+    frets.forEach(function (f, i) { if (f === low) at.push(i); });
+    if (at.length >= 2) {
+      var a = at[0], b = at[at.length - 1], mid = frets.slice(a + 1, b);
+      if (b - a >= 2 && mid.every(function (f) { return f >= low; }) && mid.some(function (f) { return f > low; })) barre = [a, b];
+    }
     var marks = '', strs = '', dots = '', nums = '', wires = '', inl = '';
+    if (barre) {
+      var xa = X(barre[0]), xb = X(barre[1]);
+      dots += '<i class="bar" style="--l:' + Math.min(xa, xb) + ';--wd:' + Math.abs(xb - xa) + ';--y:' + ((low - base + 0.5) / 4) + '"></i>';
+    }
     frets.forEach(function (f, i) {
-      var x = ((lefty ? 5 - i : i) + 0.5) / 6;
+      var x = X(i);
       if (f === 0) marks += '<i class="mk o" style="--x:' + x + '"></i>';
       if (f < 0) marks += '<i class="mk x" style="--x:' + x + '"><svg viewBox="0 0 18 18"><path d="M3 3l12 12M15 3L3 15"/></svg></i>';
       strs += '<div class="str' + (f < 0 ? ' x' : '') + '" style="--x:' + x + ';--w:' + GAUGE[i] + 'px;--c:' + CORE[i] + 'px;--i:' + i + '"><b class="fill"></b></div>';
-      if (f > 0) dots += '<i class="dot" style="--x:' + x + ';--y:' + ((f - base + 0.5) / 4) + '"></i>';
+      var underBar = barre && f === low && i >= barre[0] && i <= barre[1];
+      if (f > 0 && !underBar) dots += '<i class="dot" style="--x:' + x + ';--y:' + ((f - base + 0.5) / 4) + '"></i>';
     });
     for (var r = 0; r < 4; r++) {
       nums += '<span>' + (base + r) + '</span>';
@@ -623,11 +686,11 @@ var Engine = (function () {
     }
     el.innerHTML = '<div class="marks">' + marks + '</div><div class="nums" aria-hidden="true">' + nums + '</div>' +
       '<div class="board' + (base === 1 ? ' open' : '') + '">' + inl + wires + strs + dots + '</div>';
-    el.setAttribute('aria-label', name + ' chord');
+    el.setAttribute('aria-label', E.nameOf(name) + ' chord');
     return { fills: [].slice.call(el.querySelectorAll('.fill')), strs: [].slice.call(el.querySelectorAll('.str')) };
   }
-  function chordLabel(name) {
-    var m = /^([A-G][#b]?)(.*)$/.exec(name);
+  function chordLabel(id) {
+    var m = /^([A-G][#b]?)(.*)$/.exec(E.nameOf(id));
     return '<span class="root">' + m[1] + '</span>' + (m[2] ? '<span class="q">' + m[2] + '</span>' : '');
   }
 
@@ -697,30 +760,35 @@ var Engine = (function () {
 
   // ---- מסך השלבים ----
   function starRow(n, cls) { var s = ''; for (var i = 0; i < 5; i++) s += '<svg class="' + cls + (i < n ? ' on' : '') + '"><use href="#i-star"/></svg>'; return s; }
+  function row(id, num, name, chordsText, extraCls) {
+    var open = isOpen(id), st = data.stars[id] || 0, best = data.best[id] || 0;
+    var side = open ? '<span class="stars" aria-label="' + st + ' of 5 stars">' + starRow(st, 'star') + '</span><span class="lv-best">Best ' + best + '</span>'
+      : '<svg class="icon" aria-label="Locked"><use href="#i-lock"/></svg>';
+    return '<li><button class="lv' + (extraCls || '') + (open ? '' : ' locked') + (st >= 5 ? ' done' : '') + '" data-id="' + id + '">' +
+      '<span class="lv-n">' + num + '</span><span class="lv-main"><span class="lv-name">' + name + '</span>' +
+      '<span class="lv-chords">' + chordsText + '</span></span><span class="lv-side">' + side + '</span></button></li>';
+  }
   function renderLevels() {
     var html = '';
-    E.GROUPS.forEach(function (g, i) {
-      var open = isOpen(i), st = data.stars[i] || 0, best = data.best[i] || 0;
-      var side = open ? '<span class="stars" aria-label="' + st + ' of 5 stars">' + starRow(st, 'star') + '</span><span class="lv-best">Best ' + best + '</span>'
-        : '<svg class="icon" aria-label="Locked"><use href="#i-lock"/></svg>';
-      html += '<li><button class="lv' + (open ? '' : ' locked') + (st >= 5 ? ' done' : '') + '" data-i="' + i + '">' +
-        '<span class="lv-n">' + (i + 1) + '</span><span class="lv-main"><span class="lv-name">' + g.name + '</span>' +
-        '<span class="lv-chords">' + g.chords.join(' ') + '</span></span><span class="lv-side">' + side + '</span></button></li>';
-    });
+    E.GROUPS.forEach(function (g, i) { html += row(g.id, i + 1, g.name, g.chords.map(E.labelOf).join(' ')); });
+    var u = E.collected(data.stars), shown = u.slice(0, 10).map(E.labelOf).join(' ');
+    html += row(ULTRA, '<svg><use href="#i-star"/></svg>', 'Ultra',
+      u.length ? shown + (u.length > 10 ? ' +' + (u.length - 10) : '') : 'Get 5 stars in a level. Its chords come here.', ' ultra');
     $('#levelList').innerHTML = html;
-    $('#levelNote').textContent = data.set.noTimer ? 'No timer is on. Stars are not saved.' : 'Get 5 stars to open the next level.';
+    $('#levelNote').textContent = data.set.noTimer ? 'No timer is on. Stars are not saved.'
+      : data.set.allOpen ? 'All levels are open.' : 'Get 5 stars to open the next level.';
   }
   $('#levelList').addEventListener('click', function (ev) {
     var b = ev.target.closest('.lv'); if (!b) return;
-    var i = +b.dataset.i;
-    if (!isOpen(i)) { toast('Get 5 stars in level ' + i + ' first.'); return; }
-    begin(i);
+    var id = b.dataset.id;
+    if (!isOpen(id)) { toast(id === ULTRA ? 'Get 5 stars in any level first.' : 'Get 5 stars in level ' + idx(id) + ' first.'); return; }
+    begin(id);
   });
 
   // ---- התחלת סבב: מוודאים מיקרופון, ספירה לאחור, ואז משחק ----
-  var curGroup = 0, countStart = 0, countShown = 0;
-  function begin(i) {
-    curGroup = i;
+  var curGroup = 'basic', countStart = 0, countShown = 0;
+  function begin(id) {
+    curGroup = id;
     initAudio().then(function () {
       $('#micError').hidden = true;
       show('count'); A.listener.resetCalibration();
@@ -743,7 +811,7 @@ var Engine = (function () {
   var R = null, judge = E.createJudge(), neckRefs = null, disp = [0, 0, 0, 0, 0, 0], target = [0, 0, 0, 0, 0, 0];
   var scoreEl = $('#score'), timerEl = $('#timer'), neckEl = $('#neck'), comboEl = $('#combo');
   function startRound() {
-    R = { g: curGroup, list: E.GROUPS[curGroup].chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
+    R = { g: curGroup, list: level(curGroup).chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
       t0: performance.now(), pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, noTimer: data.set.noTimer, L: E.LEVELS[data.set.level], timerText: '' };
     scoreEl.textContent = '0'; setCombo(0); timerEl.classList.remove('low');
     timerEl.textContent = R.timerText = R.noTimer ? '∞' : E.ROUND_SECONDS.toFixed(1);
@@ -845,14 +913,16 @@ var Engine = (function () {
   // ---- סוף הסבב ----
   function endRound() {
     stopLoop(); releaseWake();
-    var g = R.g, n = R.score, stars = E.starsFor(n), prev = data.best[g] || 0, isNew = n > prev;
-    var nowOpenNext = stars >= 5 && g + 1 < E.GROUPS.length && !isOpen(g + 1);
+    var g = R.g, i = idx(g), n = R.score, stars = E.starsFor(n), prev = data.best[g] || 0, isNew = n > prev;
+    var nextId = i >= 0 && i + 1 < E.GROUPS.length ? E.GROUPS[i + 1].id : null;
+    var firstFive = !R.noTimer && g !== ULTRA && stars >= 5 && (data.stars[g] || 0) < 5;
+    var nowOpenNext = firstFive && nextId && !isOpen(nextId);
     if (!R.noTimer) {
       if (isNew) data.best[g] = n;
       data.stars[g] = Math.max(data.stars[g] || 0, stars);
       save();
     }
-    $('#resTitle').textContent = (g + 1) + '. ' + E.GROUPS[g].name;
+    $('#resTitle').textContent = g === ULTRA ? 'Ultra' : (i + 1) + '. ' + E.GROUPS[i].name;
     var sh = '';
     E.STAR_AT.forEach(function (x, i) { sh += '<div class="' + (i < stars ? 'on' : '') + '" style="--i:' + i + '"><svg><use href="#i-star"/></svg>' + x + '</div>'; });
     $('#resStars').innerHTML = sh;
@@ -860,24 +930,28 @@ var Engine = (function () {
     $('#ribbon').hidden = !isNew;
     $('#resNum').textContent = n;
     $('#resBest').textContent = isNew ? (prev > 0 ? 'Old best: ' + prev : '') : 'Best: ' + prev;
-    $('#nextBtn').hidden = !(g + 1 < E.GROUPS.length && isOpen(g + 1));
+    $('#nextBtn').hidden = !(nextId && isOpen(nextId));
+    $('#nextBtn').dataset.id = nextId || '';
     show('results');
-    if (nowOpenNext) toast('Level ' + (g + 2) + ' is open!');
+    if (nowOpenNext) toast('Level ' + (i + 2) + ' is open! Chords added to Ultra.');
+    else if (firstFive) toast('Chords added to Ultra!');
   }
   $('#againBtn').addEventListener('click', function () { begin(curGroup); });
-  $('#nextBtn').addEventListener('click', function () { begin(curGroup + 1); });
+  $('#nextBtn').addEventListener('click', function () { begin($('#nextBtn').dataset.id); });
   $('#backBtn').addEventListener('click', function () { renderLevels(); show('levels'); });
 
   // ---- הגדרות ----
   function openSettings() {
     $('#lv' + data.set.level[0].toUpperCase() + data.set.level.slice(1)).checked = true;
     $('#optLefty').checked = data.set.lefty; $('#optNoTimer').checked = data.set.noTimer; $('#optSound').checked = data.set.sound;
+    $('#optAllOpen').checked = data.set.allOpen;
     $('#settings').hidden = false; $('#setDone').focus();
   }
   function closeSettings() {
     var lv = document.querySelector('input[name=level]:checked');
     data.set.level = lv ? lv.value : 'normal';
     data.set.lefty = $('#optLefty').checked; data.set.noTimer = $('#optNoTimer').checked; data.set.sound = $('#optSound').checked;
+    data.set.allOpen = $('#optAllOpen').checked;
     save(); $('#settings').hidden = true; renderLevels(); buildNeck($('#demoNeck'), 'C', data.set.lefty);
   }
   $('#gearBtn').addEventListener('click', openSettings);
