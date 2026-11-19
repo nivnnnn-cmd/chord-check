@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#150f0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chord Check">
+<meta name="description" content="See a chord. Play it on your guitar. The app listens and checks every string.">
+<title>Chord Check</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23150f0b'/%3E%3Cg stroke='%23f3e9d6' stroke-width='3'%3E%3Cpath d='M14 16h36M14 30h36M14 44h36'/%3E%3C/g%3E%3Cg stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M18 14v38M27 14v38' stroke='%233fdc7c'/%3E%3Cpath d='M37 14v38M46 14v38' stroke='%236e5a48'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap">
+<style>
+/* מבנה: עמודה אחת ברוחב טלפון. מסך המשחק בנוי מלמעלה למטה: שורת מצב, שם אקורד, צוואר גיטרה, הנחיה */
+:root{
+  --bg:#150f0b;        /* רקע: עץ רוזווד כהה */
+  --wood:#2a1b12;      /* לוח השריגים */
+  --wood-2:#3a271b;
+  --line:#4a362a;
+  --bone:#f3e9d6;      /* טקסט ועיגולי אצבעות, בצבע עצם כמו האוכף של הגיטרה */
+  --muted:#b39d84;
+  --dim:#6e5a48;
+  --brass:#f1b54a;     /* צבע הדגשה: פליז, לכוכבים ולכפתורים */
+  --brass-ink:#2a1a08;
+  --lit:#3fdc7c;       /* ירוק של מיתר שנשמע נכון */
+  --lit-hi:#b4ffd0;
+  --red:#ff5d4f;         /* אדום של מיתר שלא מנגנים */
+  --display:"Bricolage Grotesque", ui-rounded, -apple-system, system-ui, sans-serif;
+  --body:-apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background-color:var(--bg);color:var(--bone);font:16px/1.4 var(--body);
+  background-image:radial-gradient(120% 60% at 50% -8%, rgba(241,181,74,.10), transparent 62%);
+  -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;overscroll-behavior:none;overflow:hidden;
+}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible+i,input:focus-visible+label{outline:3px solid var(--brass);outline-offset:3px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+p{margin:0}
+
+.screen{
+  position:fixed;inset:0;display:flex;flex-direction:column;overflow-y:auto;
+  padding-top:max(16px, env(safe-area-inset-top, 0px));
+  padding-bottom:max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.col{width:100%;max-width:460px;margin:0 auto}
+
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:58px;
+  border-radius:16px;font:700 20px/1 var(--display);letter-spacing:.01em;
+  transition:transform .12s ease, filter .12s ease;
+}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brass);color:var(--brass-ink);box-shadow:0 2px 0 #a8731d, 0 10px 24px -10px rgba(241,181,74,.6)}
+.btn.ghost{border:1.5px solid var(--line);color:var(--bone)}
+.small{color:var(--muted);font-size:15px}
+.icon{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- צוואר הגיטרה (הדיאגרמה) ---------- */
+.neck{
+  --h:300px;--nw:28px;
+  display:grid;grid-template-columns:var(--nw) 1fr var(--nw);grid-template-rows:34px var(--h);
+  width:min(76vw, 330px);
+}
+.neck .marks{grid-column:2;grid-row:1;position:relative}
+.neck .nums{grid-column:1;grid-row:2;display:grid;grid-template-rows:repeat(4,1fr);align-items:center;text-align:center;
+  color:var(--muted);font:600 15px/1 var(--body);font-variant-numeric:tabular-nums}
+.neck.lefty .nums{grid-column:3}
+.neck .board{
+  grid-column:2;grid-row:2;position:relative;border-radius:4px;
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 1px, transparent 1px 5px, rgba(255,255,255,.025) 5px 6px, transparent 6px 11px),
+    linear-gradient(90deg, var(--wood) 0%, var(--wood-2) 50%, var(--wood) 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35), 0 18px 40px -20px rgba(0,0,0,.8);
+}
+.neck .board::before{ /* האוכף בראש הצוואר, או שריג דק כשהדיאגרמה מתחילה בשריג גבוה */
+  content:"";position:absolute;left:-3px;right:-3px;top:-4px;height:4px;border-radius:2px;
+  background:linear-gradient(#a59a8a,#d9d6d0);
+}
+.neck .board.open::before{top:-9px;height:9px;background:linear-gradient(#fffaf0,#d8ccb4)}
+.neck .fw{position:absolute;left:-3px;right:-3px;height:3px;top:calc(var(--y)*100%);transform:translateY(-50%);
+  background:linear-gradient(#e7e8ea,#8c8f95);border-radius:2px;box-shadow:0 1px 1px rgba(0,0,0,.5)}
+.neck .inlay{position:absolute;left:50%;top:calc(var(--y)*100%);width:16px;height:16px;border-radius:50%;
+  transform:translate(-50%,-50%);background:rgba(243,233,214,.12)}
+.neck .str{
+  position:absolute;top:0;bottom:0;left:calc(var(--x)*100%);width:var(--w);transform:translateX(-50%);
+  border-radius:99px;background:rgba(243,233,214,.07);overflow:hidden;z-index:1;
+  transition:box-shadow .2s ease;
+}
+.neck .str::before{ /* המיתר עצמו, קו מתכת */
+  content:"";position:absolute;top:0;bottom:0;left:50%;width:var(--c);transform:translateX(-50%);
+  background:linear-gradient(90deg,#7f8287,#eceef0,#7f8287);opacity:.75;z-index:1;
+}
+.neck .fill{
+  position:absolute;inset:0;transform-origin:50% 100%;transform:scaleY(0);
+  background:linear-gradient(to top, #169a4c, var(--lit));z-index:0;
+}
+.neck .str.full{box-shadow:0 0 16px 2px rgba(63,220,124,.55)}
+.neck .str.full .fill{background:linear-gradient(to top, var(--lit), var(--lit-hi))}
+.neck .str.x{background:rgba(255,93,79,.20)}
+.neck .str.x::before{background:var(--red);opacity:.9}
+.neck .str.x .fill{display:none}
+.neck .dot{
+  position:absolute;left:calc(var(--x)*100%);top:calc(var(--y)*100%);width:30px;height:30px;border-radius:50%;
+  transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 30%, #fff, var(--bone) 55%, #d9cbb2);
+  box-shadow:0 3px 8px rgba(0,0,0,.55);z-index:2;
+}
+.neck .mk{position:absolute;left:calc(var(--x)*100%);bottom:9px;transform:translateX(-50%);width:18px;height:18px}
+.neck .mk.o{border:2.5px solid var(--bone);border-radius:50%}
+.neck .mk.x svg{width:18px;height:18px;stroke:var(--red);stroke-width:3;stroke-linecap:round;fill:none;display:block}
+.neck.win .board{animation:winflash .42s ease-out}
+@keyframes winflash{0%{box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),0 0 0 0 rgba(63,220,124,.0)}30%{box-shadow:inset 0 0 0 2px rgba(180,255,208,.8),0 0 50px 10px rgba(63,220,124,.45)}100%{box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),0 0 0 0 rgba(63,220,124,0)}}
+
+/* ---------- מסך פתיחה ---------- */
+#home{justify-content:space-between;align-items:center;text-align:center}
+.home-top{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding-block:12px}
+.home-top h1{font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.home-top h1 span{color:var(--brass)}
+.home-top p{color:var(--muted);font-size:18px;max-width:30ch}
+.demo{--h:min(34vh, 250px);width:min(58vw, 230px);margin-top:6px}
+.demo .fill{animation:demo 3.6s ease-in-out infinite;animation-delay:calc(var(--i)*.16s)}
+@keyframes demo{0%,8%{transform:scaleY(0)}40%,78%{transform:scaleY(1)}100%{transform:scaleY(0)}}
+.home-bottom{display:flex;flex-direction:column;gap:12px;width:100%;max-width:460px;padding-bottom:6px}
+.err{color:#ffb3aa;font-size:15px}
+
+/* ---------- מסך השלבים ---------- */
+.topbar{display:flex;align-items:center;justify-content:space-between;min-height:48px;margin-bottom:10px}
+.topbar h2{font-size:26px;font-weight:800}
+.iconbtn{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;color:var(--bone)}
+.iconbtn:active{background:rgba(255,255,255,.06)}
+#levelList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+#levelList li+li{border-top:1px solid var(--line)}
+.lv{width:100%;display:grid;grid-template-columns:52px 1fr auto;gap:14px;align-items:center;padding:16px 4px;text-align:left}
+.lv:active{background:rgba(255,255,255,.04)}
+.lv-n{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font:800 21px/1 var(--display);
+  background:var(--wood-2);border:2px solid var(--line)}
+.lv.done .lv-n{border-color:var(--brass);color:var(--brass)}
+.lv-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.lv-name{font:700 19px/1.15 var(--display)}
+.lv-chords{color:var(--muted);font-size:15px;word-spacing:.25em}
+.lv-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.stars{display:flex;gap:2px}
+.star{width:17px;height:17px;fill:var(--dim)}
+.star.on{fill:var(--brass)}
+.lv-best{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.lv.locked{opacity:.5}
+.lv.locked .lv-side .icon{width:22px;height:22px;color:var(--muted)}
+.lv-note{color:var(--dim);font-size:13px;text-align:center;margin-top:18px}
+
+/* ---------- ספירה לאחור ---------- */
+#count{align-items:center;justify-content:center;text-align:center;gap:26px}
+#count h2{font-size:26px;font-weight:700}
+#countNum{font:800 140px/1 var(--display);color:var(--brass);font-variant-numeric:tabular-nums}
+#countNum.tick{animation:tick .5s ease-out}
+@keyframes tick{from{transform:scale(1.35);opacity:.3}to{transform:scale(1);opacity:1}}
+.mic{display:flex;align-items:center;gap:12px;width:min(70vw,260px)}
+.mic span{color:var(--muted);font-size:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.meter{flex:1;height:10px;border-radius:99px;background:rgba(243,233,214,.1);overflow:hidden}
+.meter i{display:block;height:100%;width:100%;background:var(--lit);transform-origin:left;transform:scaleX(0);transition:transform .08s linear}
+
+/* ---------- מסך המשחק ---------- */
+#play{gap:4px}
+.hud{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:52px}
+.hud .iconbtn{justify-self:start;background:rgba(243,233,214,.07)}
+#score{font:800 44px/1 var(--display);min-width:2ch;text-align:center}
+#score.pop{animation:pop .35s ease-out}
+@keyframes pop{40%{transform:scale(1.3);color:var(--lit-hi)}}
+#timer{justify-self:end;font:700 24px/1 var(--body);font-variant-numeric:tabular-nums;padding:9px 12px;border-radius:12px;
+  background:rgba(243,233,214,.07);min-width:76px;text-align:center}
+#timer.low{color:#fff;background:var(--red)}
+#chordName{text-align:center;font-family:var(--display);font-weight:800;line-height:1;margin-top:6px;letter-spacing:-.02em}
+#chordName .root{font-size:88px}
+#chordName .q{font-size:50px;margin-left:2px}
+#chordName.swap{animation:swap .22s ease-out}
+@keyframes swap{from{opacity:0;transform:translateY(8px)}}
+.stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+.stage .neck{--h:clamp(190px, calc(100vh - 360px), 430px)}
+@supports (height:100dvh){.stage .neck{--h:clamp(190px, calc(100dvh - 340px), 430px)}}
+.combo{position:absolute;right:0;top:50%;transform:translateY(-36%);display:flex;flex-direction:column-reverse;gap:6px}
+.combo i{display:block;width:14px;height:48px;border-radius:7px;background:rgba(243,233,214,.1);transition:background .15s ease, box-shadow .15s ease}
+.combo i.on{background:var(--lit);box-shadow:0 0 12px rgba(63,220,124,.5)}
+.combo.burst i{background:var(--lit-hi);box-shadow:0 0 18px rgba(180,255,208,.8)}
+.hint{text-align:center;color:var(--muted);font-size:17px;padding-bottom:4px}
+.bonus{position:fixed;font:800 26px/1 var(--display);color:var(--lit-hi);pointer-events:none;z-index:30;text-shadow:0 2px 12px rgba(63,220,124,.6)}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:20;overflow:hidden}
+.spark{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;background:var(--lit-hi);transform:rotate(45deg);border-radius:2px;box-shadow:0 0 10px 2px rgba(63,220,124,.8)}
+@media (max-height:700px){#chordName .root{font-size:70px}#chordName .q{font-size:40px}#score{font-size:38px}}
+
+/* ---------- חלונות: השהיה, הגדרות, הודעה קצרה ---------- */
+.overlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+  background:rgba(12,8,5,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.card{width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;align-items:stretch;text-align:center}
+.card h2{font-size:34px;font-weight:800;margin-bottom:10px}
+.sheet-wrap{align-items:flex-end}
+.sheet{width:100%;max-width:460px;background:#21170f;border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;
+  padding:22px 20px max(20px, env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:6px}
+.sheet h2{font-size:24px;font-weight:800;margin-bottom:8px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;border:0;margin:0;padding:0;font-size:18px;font-weight:600}
+.row+.row{border-top:1px solid var(--line)}
+fieldset.row legend{float:left;padding:0}
+.seg{display:flex;background:rgba(243,233,214,.07);border-radius:12px;padding:3px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:9px 13px;border-radius:9px;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg input:checked+label{background:var(--bone);color:var(--bg)}
+.sw{cursor:pointer}
+.sw input{position:absolute;opacity:0;pointer-events:none}
+.sw i{width:52px;height:32px;border-radius:99px;background:rgba(243,233,214,.15);position:relative;transition:background .15s ease;flex:none}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:var(--bone);transition:transform .15s ease}
+.sw input:checked+i{background:var(--lit)}
+.sw input:checked+i::after{transform:translateX(20px)}
+.sheet .btn{margin-top:12px}
+.toast{position:fixed;left:50%;bottom:max(28px, calc(env(safe-area-inset-bottom, 0px) + 16px));transform:translateX(-50%);z-index:50;
+  background:var(--bone);color:var(--bg);font-weight:700;padding:12px 18px;border-radius:14px;max-width:calc(100% - 32px);text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.5)}
+
+/* ---------- מסך תוצאות ---------- */
+#results{align-items:center;justify-content:center;text-align:center;gap:22px}
+#results .col{display:flex;flex-direction:column;align-items:center;gap:20px}
+.res-title{color:var(--muted);font-weight:600;font-size:17px}
+.bigstars{display:flex;gap:10px}
+.bigstars div{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--muted);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.bigstars svg{width:44px;height:44px;fill:var(--dim)}
+.bigstars .on svg{fill:var(--brass);animation:starin .45s cubic-bezier(.3,1.6,.5,1) both;animation-delay:calc(var(--i)*.14s + .1s)}
+.bigstars .on{color:var(--bone)}
+@keyframes starin{from{transform:scale(0) rotate(-40deg)}}
+.ribbon{background:var(--brass);color:var(--brass-ink);font:800 20px/1 var(--display);padding:11px 28px;
+  clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%);animation:ribbon .5s ease-out .5s both}
+@keyframes ribbon{from{transform:scale(.6);opacity:0}}
+.played{display:flex;flex-direction:column;align-items:center;gap:2px}
+.played span{color:var(--muted);font-size:16px;font-weight:600}
+.played b{font:800 96px/1 var(--display)}
+.res-best{color:var(--muted);font-size:17px;font-variant-numeric:tabular-nums}
+.res-btns{display:flex;flex-direction:column;gap:12px;width:100%;margin-top:6px}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .demo .fill{transform:scaleY(1)}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.6l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17.2l-5.9 3.2 1.3-6.5L2.5 9.4l6.6-.8z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+</svg>
+
+<!-- מסך פתיחה -->
+<section id="home" class="screen">
+  <div class="home-top">
+    <h1>Chord <span>Check</span></h1>
+    <div id="demoNeck" class="neck demo" aria-hidden="true"></div>
+    <p>See a chord. Play it on your guitar. We check every string.</p>
+  </div>
+  <div class="home-bottom">
+    <p class="small">The app uses your mic to hear your guitar.</p>
+    <button id="startBtn" class="btn primary">Start</button>
+    <p id="micError" class="err" role="alert" hidden></p>
+  </div>
+</section>
+
+<!-- מסך השלבים -->
+<section id="levels" class="screen" hidden>
+  <div class="col">
+    <div class="topbar">
+      <h2>Chord Check</h2>
+      <button id="gearBtn" class="iconbtn" aria-label="Settings"><svg class="icon"><use href="#i-gear"/></svg></button>
+    </div>
+    <ul id="levelList"></ul>
+    <p id="levelNote" class="lv-note"></p>
+  </div>
+</section>
+
+<!-- ספירה לאחור, ובזמנה כיול רעש החדר -->
+<section id="count" class="screen" hidden>
+  <h2>Get your guitar ready</h2>
+  <div id="countNum" aria-live="assertive">3</div>
+  <div class="mic"><span>Mic</span><div class="meter"><i id="micFill"></i></div></div>
+  <p class="small">Electric guitar? Plug it into an amp.</p>
+</section>
+
+<!-- מסך המשחק -->
+<section id="play" class="screen" hidden>
+  <div class="col hud">
+    <button id="pauseBtn" class="iconbtn" aria-label="Pause"><svg class="icon"><use href="#i-pause"/></svg></button>
+    <div id="score" aria-label="Chords played">0</div>
+    <div id="timer">40.0</div>
+  </div>
+  <div id="chordName" aria-live="polite"></div>
+  <div class="col stage">
+    <div id="neck" class="neck" role="img"></div>
+    <div id="combo" class="combo" aria-hidden="true"><i></i><i></i><i></i></div>
+  </div>
+  <p class="hint">Play this chord</p>
+</section>
+
+<!-- מסך תוצאות -->
+<section id="results" class="screen" hidden>
+  <div class="col">
+    <p id="resTitle" class="res-title"></p>
+    <div id="resStars" class="bigstars"></div>
+    <div id="ribbon" class="ribbon" hidden>New best!</div>
+    <div class="played"><span>Chords played</span><b id="resNum">0</b></div>
+    <p id="resBest" class="res-best"></p>
+    <div class="res-btns">
+      <button id="againBtn" class="btn primary">Again</button>
+      <button id="nextBtn" class="btn ghost" hidden>Next</button>
+      <button id="backBtn" class="btn ghost">Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- השהיה -->
+<div id="pauseBox" class="overlay" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <h2 id="pauseTitle">Paused</h2>
+    <button id="resumeBtn" class="btn primary">Play</button>
+    <button id="restartBtn" class="btn ghost">Again</button>
+    <button id="quitBtn" class="btn ghost">Back</button>
+  </div>
+</div>
+
+<!-- הגדרות -->
+<div id="settings" class="overlay sheet-wrap" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <h2 id="setTitle">Settings</h2>
+    <fieldset class="row">
+      <legend>Check</legend>
+      <div class="seg">
+        <input type="radio" name="level" id="lvEasy" value="easy"><label for="lvEasy">Easy</label>
+        <input type="radio" name="level" id="lvNormal" value="normal"><label for="lvNormal">Normal</label>
+        <input type="radio" name="level" id="lvHard" value="hard"><label for="lvHard">Hard</label>
+      </div>
+    </fieldset>
+    <label class="row sw"><span>Left hand</span><input type="checkbox" id="optLefty"><i></i></label>
+    <label class="row sw"><span>No timer</span><input type="checkbox" id="optNoTimer"><i></i></label>
+    <label class="row sw"><span>Sound</span><input type="checkbox" id="optSound"><i></i></label>
+    <button id="setDone" class="btn primary">Done</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<div id="fx"></div>
+
+<noscript><p style="padding:24px">Please turn on JavaScript.</p></noscript>
+
+<script id="engine">
+// ===== מנוע הזיהוי. בלי ממשק, כדי שאפשר יהיה לבדוק אותו גם מחוץ לדפדפן =====
+// הרעיון: אנחנו יודעים איזה אקורד ביקשנו, אז רק בודקים לכל מיתר אם הצליל שלו נשמע.
+var Engine = (function () {
+  'use strict';
+  var OPEN = [40, 45, 50, 55, 59, 64]; // מיתרים פתוחים במספרי MIDI: E2 A2 D3 G3 B3 E4. אינדקס 0 = המיתר העבה
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  function cents(a, b) { return 1200 * Math.log2(a / b); }
+  function sstep(lo, hi, x) { var t = (x - lo) / (hi - lo); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
+
+  // שריג לכל מיתר, מהעבה לדק. ‎-1 = לא מנגנים (איקס), 0 = מיתר פתוח
+  var CHORDS = {
+    Em: [0, 2, 2, 0, 0, 0], Am: [-1, 0, 2, 2, 1, 0], E: [0, 2, 2, 1, 0, 0], A: [-1, 0, 2, 2, 2, 0],
+    G: [3, 2, 0, 0, 0, 3], C: [-1, 3, 2, 0, 1, 0], D: [-1, -1, 0, 2, 3, 2],
+    Dm: [-1, -1, 0, 2, 3, 1], A7: [-1, 0, 2, 0, 2, 0], E7: [0, 2, 0, 1, 0, 0], D7: [-1, -1, 0, 2, 1, 2],
+    E5: [0, 2, 2, -1, -1, -1], A5: [-1, 0, 2, 2, -1, -1], D5: [-1, -1, 0, 2, 3, -1], G5: [3, 5, 5, -1, -1, -1],
+    Cadd9: [-1, 3, 2, 0, 3, 3], Dsus2: [-1, -1, 0, 2, 3, 0], Dsus4: [-1, -1, 0, 2, 3, 3], Asus2: [-1, 0, 2, 2, 0, 0], Em7: [0, 2, 2, 0, 3, 0]
+  };
+  var GROUPS = [
+    { name: 'First Steps', chords: ['Em', 'Am', 'E', 'A'] },
+    { name: 'Song Chords', chords: ['G', 'C', 'D', 'Em'] },
+    { name: 'More Open Chords', chords: ['Dm', 'A7', 'E7', 'D7'] },
+    { name: 'Power Chords', chords: ['E5', 'A5', 'D5', 'G5'] },
+    { name: 'Color Chords', chords: ['Cadd9', 'Dsus2', 'Dsus4', 'Asus2', 'Em7'] }
+  ];
+  var STAR_AT = [5, 10, 20, 30, 40];
+  var ROUND_SECONDS = 40, COMBO_SIZE = 3, COMBO_BONUS = 5;
+
+  // שלוש דרגות של "כמה קפדני". thr = כמה צריך כדי שמיתר ייחשב נכון. miss = כמה מיתרים מותר לפספס באקורד של 5–6 מיתרים
+  var LEVELS = {
+    easy:   { thr: 0.5,  kAmb: 0.45, snrLo: 9,  snrHi: 20, relLo: -50, relHi: -32, tol: 50, miss: 1, extra: 0, hold: 0.15, jump: 3 },
+    normal: { thr: 0.6,  kAmb: 0.4,  snrLo: 10, snrHi: 24, relLo: -45, relHi: -28, tol: 45, miss: 0, extra: 3, hold: 0.2,  jump: 3.5 },
+    hard:   { thr: 0.72, kAmb: 0.3,  snrLo: 12, snrHi: 28, relLo: -40, relHi: -25, tol: 35, miss: 0, extra: 8, hold: 0.25, jump: 4 }
+  };
+
+  var cache = {};
+  function chordInfo(name) {
+    if (cache[name]) return cache[name];
+    var frets = CHORDS[name];
+    var notes = frets.map(function (f, i) { return f < 0 ? null : hz(OPEN[i] + f); });
+    // "דו־משמעי": הצליל הזה של המיתר יכול להגיע גם מצליל נלווה של מיתר אחר באקורד, ולכן הוא לא מוכיח שהמיתר הזה נוגן
+    var amb = notes.map(function (f, i) {
+      if (f == null) return null;
+      return [1, 2].map(function (h) {
+        return notes.some(function (g, j) {
+          if (j === i || g == null) return false;
+          for (var k = 1; k <= 8; k++) if (Math.abs(cents(h * f, k * g)) < 50) return true;
+          return false;
+        });
+      });
+    });
+    // צלילים "מותרים": צלילי האקורד, וגם מיתר עם איקס שצלצל פתוח (לא מענישים עליו בגרסה הראשונה)
+    var allowed = frets.map(function (f, i) { return hz(OPEN[i] + Math.max(f, 0)); });
+    function explained(F) {
+      return allowed.some(function (g) { for (var k = 1; k <= 8; k++) if (Math.abs(cents(F, k * g)) < 50) return true; return false; });
+    }
+    // צלילים במרחק חצי טון או טון מהצליל של המיתר, שלא שייכים לאקורד. אם הם נשמעים, האצבע על שריג לא נכון
+    var nbrs = notes.map(function (f) {
+      if (f == null) return [];
+      return [-2, -1, 1, 2].map(function (d) { return f * Math.pow(2, d / 12); }).filter(function (F) { return !explained(F); });
+    });
+    var required = notes.filter(function (f) { return f != null; }).length;
+    return (cache[name] = { name: name, frets: frets, notes: notes, amb: amb, allowed: allowed, nbrs: nbrs, required: required });
+  }
+
+  function makeFFT(n) {
+    var bits = Math.round(Math.log2(n)), cos = new Float64Array(n >> 1), sin = new Float64Array(n >> 1), rev = new Uint32Array(n), i;
+    for (i = 0; i < n >> 1; i++) { cos[i] = Math.cos(2 * Math.PI * i / n); sin[i] = Math.sin(2 * Math.PI * i / n); }
+    for (i = 0; i < n; i++) { var r = 0; for (var b = 0; b < bits; b++) r |= ((i >> b) & 1) << (bits - 1 - b); rev[i] = r; }
+    return function (re, im) {
+      for (var i = 0; i < n; i++) { var j = rev[i]; if (j > i) { var t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+      for (var size = 2; size <= n; size <<= 1) {
+        var half = size >> 1, step = n / size;
+        for (var s = 0; s < n; s += size) {
+          for (var a = s, k = 0; a < s + half; a++, k += step) {
+            var l = a + half, c = cos[k], si = sin[k];
+            var tr = re[l] * c + im[l] * si, ti = im[l] * c - re[l] * si;
+            re[l] = re[a] - tr; im[l] = im[a] - ti; re[a] += tr; im[a] += ti;
+          }
+        }
+      }
+    };
+  }
+  function hann(n) { var w = new Float64Array(n); for (var i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)); return w; }
+  function median(arr) { var a = Float32Array.from(arr).sort(); return a.length ? a[a.length >> 1] : -Infinity; }
+
+  // מאזין: מקבל בכל פעם את שליש השנייה האחרון של הקול ומחזיר ציון 0–1 לכל מיתר
+  function createListener(sr, N) {
+    var binHz = sr / N, fft = makeFFT(N), re = new Float64Array(N), im = new Float64Array(N), win = hann(N);
+    var kMax = Math.min((N >> 1) - 2, Math.ceil(2600 / binHz));
+    var db = new Float32Array(kMax + 2);
+    var b1 = Math.round(70 / binHz), b2 = Math.round(1400 / binHz), band = new Float32Array(b2 - b1 + 1);
+    var NS = 2048, fftS = makeFFT(NS), reS = new Float64Array(NS), imS = new Float64Array(NS), winS = hann(NS);
+    var s1 = Math.round(70 * NS / sr), s2 = Math.round(1200 * NS / sr);
+    var floor = null, cal = [], calLv = [], calBand = -200, hist = [], lastOnset = -1e9;
+
+    function spectrum(buf) {
+      for (var i = 0; i < N; i++) { re[i] = buf[i] * win[i]; im[i] = 0; }
+      fft(re, im);
+      for (var k = 0; k <= kMax + 1; k++) db[k] = 10 * Math.log10(re[k] * re[k] + im[k] * im[k] + 1e-14);
+    }
+    // עוצמה של 40 האלפיות האחרונות, בתחום של הגיטרה בלבד, כדי לזהות פריטה (וגם לא להתבלבל מהצליל של האפליקציה, שהוא גבוה יותר)
+    function recent(buf) {
+      var off = buf.length - NS, ms = 0, i;
+      for (i = 0; i < NS; i++) { var x = buf[off + i]; ms += x * x; reS[i] = x * winS[i]; imS[i] = 0; }
+      fftS(reS, imS);
+      var p = 0; for (i = s1; i <= s2; i++) p += reS[i] * reS[i] + imS[i] * imS[i];
+      return { band: 10 * Math.log10(p + 1e-14), rms: 10 * Math.log10(ms / NS + 1e-14) };
+    }
+
+    function resetCalibration() { floor = null; cal = []; calLv = []; calBand = -200; hist = []; lastOnset = -1e9; }
+    function calibrate(buf) { spectrum(buf); cal.push(db.slice(0)); var r = recent(buf); calLv.push(r.band); return r.rms; }
+    function finishCalibration() {
+      if (cal.length < 5) { resetCalibration(); return; }
+      var n = cal.length, col = new Float32Array(n), raw = new Float32Array(kMax + 2), sm = new Float32Array(kMax + 2), k, j;
+      for (k = 0; k <= kMax + 1; k++) { for (j = 0; j < n; j++) col[j] = cal[j][k]; col.sort(); raw[k] = col[n >> 1]; }
+      for (k = 0; k <= kMax + 1; k++) { var s = 0, c = 0; for (j = k - 3; j <= k + 3; j++) if (j >= 0 && j <= kMax + 1) { s += raw[j]; c++; } sm[k] = s / c; }
+      // תקרה: צליל שנוגן בזמן הספירה לאחור לא יסתיר את אותו צליל בהמשך
+      var mid = median(sm.subarray(b1, b2 + 1));
+      for (k = 0; k <= kMax + 1; k++) if (sm[k] > mid + 12) sm[k] = mid + 12;
+      floor = sm; calBand = median(calLv); cal = []; calLv = [];
+    }
+
+    function analyze(buf, info, L, t) {
+      spectrum(buf);
+      var r = recent(buf), i, k;
+      // פריטה = קפיצה מהירה בעוצמה, לעומת השקט של השליש שנייה האחרון
+      var mn = Infinity;
+      for (i = 0; i < hist.length; i++) if (hist[i][0] >= t - 0.3) mn = Math.min(mn, hist[i][1]);
+      if (mn === Infinity && hist.length) mn = hist[hist.length - 1][1]; // טלפון איטי: בודקים מול הבדיקה הקודמת, גם אם היא ישנה
+      if (r.band - mn >= L.jump && r.band > calBand + 10) lastOnset = t;
+      hist.push([t, r.band]); while (hist.length > 1 && hist[0][0] < t - 1) hist.shift();
+
+      for (i = 0; i < band.length; i++) band[i] = db[b1 + i];
+      var fmax = -Infinity; for (i = 0; i < band.length; i++) if (band[i] > fmax) fmax = band[i];
+      var fmed = median(band); // רמת הרעש של הרגע הזה (בין הצלילים)
+      function floorAt(k) { return Math.max(floor ? floor[k] : -Infinity, fmed); }
+
+      // השיא הכי חזק ליד התדר F, אם הוא באמת שם (ולא "זליגה" של צליל חזק קרוב)
+      function peak(F) {
+        var k0 = F / binHz, r = Math.pow(2, L.tol / 1200), best = -Infinity, bestK = -1;
+        var a = Math.max(2, Math.floor(k0 / r) - 1), b = Math.min(kMax, Math.ceil(k0 * r) + 1);
+        for (var k = a; k <= b; k++) {
+          var v = db[k], A = db[k - 1], C = db[k + 1];
+          if (v < A || v < C) continue;
+          var den = A - 2 * v + C, p = den < 0 ? 0.5 * (A - C) / den : 0;
+          if (Math.abs(cents((k + p) * binHz, F)) > L.tol) continue;
+          var pv = v - 0.25 * (A - C) * p, near = -Infinity;
+          for (var j = k - 4; j <= k + 4; j++) if (j !== k && j >= 0 && j <= kMax + 1 && db[j] > near) near = db[j];
+          if (near > pv + 20) continue;
+          if (pv > best) { best = pv; bestK = k; }
+        }
+        return { v: best, k: bestK };
+      }
+      function evidence(F) {
+        var p = peak(F);
+        if (p.k < 0) return 0;
+        return sstep(L.snrLo, L.snrHi, p.v - floorAt(p.k)) * sstep(L.relLo, L.relHi, p.v - fmax);
+      }
+      var scores = info.notes.map(function (f, s) {
+        if (f == null) return 0;
+        var e = [evidence(f), evidence(2 * f)], u = 0, a = 0, hasU = false;
+        for (var h = 0; h < 2; h++) { if (info.amb[s][h]) a = Math.max(a, e[h]); else { u = Math.max(u, e[h]); hasU = true; } }
+        return hasU ? Math.max(u, L.kAmb * a) : a;
+      });
+      // בדרגה הסלחנית מותר לפספס מיתר, אבל רק מיתר חלש. מיתר שמנגן צליל לא נכון לא נסלח
+      var wrong = scores.map(function (sc, s) {
+        if (!L.miss || info.notes[s] == null || sc >= L.thr) return false;
+        return info.nbrs[s].some(function (F) { return evidence(F) >= 0.5; });
+      });
+
+      // צליל חזק שלא שייך בכלל לאקורד (למשל אקורד אחר לגמרי)
+      var extraneous = false;
+      if (L.extra > 0) {
+        var e1 = Math.round(75 / binHz), e2 = Math.round(1000 / binHz);
+        for (k = e1; k <= e2 && !extraneous; k++) {
+          var v = db[k], A = db[k - 1], C = db[k + 1];
+          if (v < fmax - L.extra || v < A || v < C || v - floorAt(k) < 15) continue;
+          var den = A - 2 * v + C, p = den < 0 ? 0.5 * (A - C) / den : 0, f = (k + p) * binHz, ok = false;
+          for (var j = 0; j < 6 && !ok; j++) for (var h = 1; h <= 8 && !ok; h++) if (Math.abs(cents(f, h * info.allowed[j])) < 60) ok = true;
+          if (!ok) extraneous = true;
+        }
+      }
+      return { scores: scores, wrong: wrong, lastOnset: lastOnset, extraneous: extraneous, rms: r.rms };
+    }
+    return { resetCalibration: resetCalibration, calibrate: calibrate, finishCalibration: finishCalibration, analyze: analyze, binHz: binHz };
+  }
+
+  // שופט: האקורד נכון כשכל המיתרים הנדרשים מלאים יחד לזמן קצר, אחרי פריטה שקרתה מאז שהאקורד הופיע
+  function createJudge() {
+    var shownAt = 0, held = 0, lastT = null;
+    return {
+      reset: function (t) { shownAt = t; held = 0; lastT = null; },
+      step: function (r, info, L, t) {
+        var dt = lastT == null ? 0 : Math.min(0.1, t - lastT); lastT = t;
+        var below = 0, wrongMiss = false;
+        for (var i = 0; i < 6; i++) if (info.notes[i] != null && r.scores[i] < L.thr) { below++; if (r.wrong[i]) wrongMiss = true; }
+        var allow = info.required >= 5 ? L.miss : 0;
+        var ok = below <= allow && !wrongMiss && r.lastOnset > shownAt && !r.extraneous;
+        held = ok ? held + dt : 0;
+        return held >= L.hold;
+      }
+    };
+  }
+  function starsFor(n) { return STAR_AT.filter(function (x) { return n >= x; }).length; }
+  // אקורד הבא: אקראי, אבל לא אותו אקורד פעמיים ברצף
+  function pickNext(list, prev, rnd) { var opts = list.filter(function (c) { return c !== prev; }); return opts[Math.floor(rnd() * opts.length)]; }
+
+  return { OPEN: OPEN, CHORDS: CHORDS, GROUPS: GROUPS, STAR_AT: STAR_AT, LEVELS: LEVELS, ROUND_SECONDS: ROUND_SECONDS,
+    COMBO_SIZE: COMBO_SIZE, COMBO_BONUS: COMBO_BONUS, hz: hz, chordInfo: chordInfo, createListener: createListener,
+    createJudge: createJudge, starsFor: starsFor, pickNext: pickNext };
+})();
+</script>
+
+<script>
+// ===== הממשק והמשחק =====
+(function () {
+  'use strict';
+  var E = Engine;
+  var $ = function (s) { return document.querySelector(s); };
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- שמירת התקדמות בטלפון עצמו ----
+  var KEY = 'chord-check-v1';
+  var data = (function () {
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    if (!d || typeof d !== 'object') d = {};
+    if (!Array.isArray(d.best)) d.best = [];
+    if (!Array.isArray(d.stars)) d.stars = [];
+    d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true }, d.set || {});
+    if (!E.LEVELS[d.set.level]) d.set.level = 'normal';
+    return d;
+  })();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
+  function isOpen(i) { return i === 0 || (data.stars[i - 1] || 0) >= 5; }
+
+  // ---- מסכים ----
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results'];
+  var mode = 'home';
+  function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
+  var toastTimer = 0;
+  function toast(msg) { var t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2200); }
+
+  // ---- ציור הצוואר ----
+  var GAUGE = [15, 14, 13, 12, 11, 10], CORE = [3.6, 3.1, 2.7, 2.2, 1.6, 1.3];
+  function buildNeck(el, name, lefty) {
+    var frets = E.CHORDS[name], fretted = frets.filter(function (f) { return f > 0; });
+    var top = Math.max.apply(null, [0].concat(fretted));
+    var base = top > 4 ? Math.min.apply(null, fretted) : 1;
+    var keep = el.classList.contains('demo') ? ' demo' : '';
+    el.className = 'neck' + keep + (lefty ? ' lefty' : '');
+    var marks = '', strs = '', dots = '', nums = '', wires = '', inl = '';
+    frets.forEach(function (f, i) {
+      var x = ((lefty ? 5 - i : i) + 0.5) / 6;
+      if (f === 0) marks += '<i class="mk o" style="--x:' + x + '"></i>';
+      if (f < 0) marks += '<i class="mk x" style="--x:' + x + '"><svg viewBox="0 0 18 18"><path d="M3 3l12 12M15 3L3 15"/></svg></i>';
+      strs += '<div class="str' + (f < 0 ? ' x' : '') + '" style="--x:' + x + ';--w:' + GAUGE[i] + 'px;--c:' + CORE[i] + 'px;--i:' + i + '"><b class="fill"></b></div>';
+      if (f > 0) dots += '<i class="dot" style="--x:' + x + ';--y:' + ((f - base + 0.5) / 4) + '"></i>';
+    });
+    for (var r = 0; r < 4; r++) {
+      nums += '<span>' + (base + r) + '</span>';
+      wires += '<i class="fw" style="--y:' + ((r + 1) / 4) + '"></i>';
+      if ([3, 5, 7, 9].indexOf(base + r) >= 0) inl += '<i class="inlay" style="--y:' + ((r + 0.5) / 4) + '"></i>';
+    }
+    el.innerHTML = '<div class="marks">' + marks + '</div><div class="nums" aria-hidden="true">' + nums + '</div>' +
+      '<div class="board' + (base === 1 ? ' open' : '') + '">' + inl + wires + strs + dots + '</div>';
+    el.setAttribute('aria-label', name + ' chord');
+    return { fills: [].slice.call(el.querySelectorAll('.fill')), strs: [].slice.call(el.querySelectorAll('.str')) };
+  }
+  function chordLabel(name) {
+    var m = /^([A-G][#b]?)(.*)$/.exec(name);
+    return '<span class="root">' + m[1] + '</span>' + (m[2] ? '<span class="q">' + m[2] + '</span>' : '');
+  }
+
+  // ---- שמע ----
+  var A = { ctx: null, an: null, buf: null, listener: null, stream: null };
+  function micLive() { return !!(A.stream && A.stream.getAudioTracks().some(function (t) { return t.readyState === 'live'; })); }
+  function initAudio() {
+    if (A.ctx && micLive()) { A.ctx.resume().catch(function () {}); return Promise.resolve(); }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('nomedia'));
+    try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) {}
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!A.ctx) A.ctx = new AC();
+    A.ctx.resume().catch(function () {}); // חייב לקרות בתוך הלחיצה, בגלל הכללים של Safari
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false })
+      .then(function (stream) {
+        A.ctx.resume().catch(function () {});
+        var src = A.ctx.createMediaStreamSource(stream), an = A.ctx.createAnalyser();
+        var N = A.ctx.sampleRate > 60000 ? 32768 : 16384; // כשליש שנייה של קול, מספיק כדי להבדיל בין שני הצלילים הנמוכים בגיטרה
+        an.fftSize = N; an.smoothingTimeConstant = 0;
+        var sink = A.ctx.createGain(); sink.gain.value = 0; // מחובר ליציאה בעוצמה אפס, כדי שהדפדפן ימשיך לעבד את הקול
+        src.connect(an); an.connect(sink); sink.connect(A.ctx.destination);
+        A.stream = stream; A.an = an; A.buf = new Float32Array(N); A.listener = E.createListener(A.ctx.sampleRate, N);
+        stream.getAudioTracks().forEach(function (t) { t.addEventListener('ended', onMicLost); });
+      });
+  }
+  function onMicLost() { if (mode === 'play' || mode === 'count') { stopLoop(); hideOverlays(); } showMicError('The mic stopped. Tap Start.'); show('home'); }
+  function showMicError(msg) { var e = $('#micError'); e.textContent = msg; e.hidden = false; }
+  function micErrorText(err) {
+    if (err && err.message === 'nomedia') return "This browser can't use the mic. Open the link in Safari.";
+    if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) return 'The mic is blocked. Allow it for this site, then tap Start.';
+    if (err && err.name === 'NotFoundError') return 'No mic found.';
+    return "Can't start the mic. Tap Start again.";
+  }
+  function grab() { A.an.getFloatTimeDomainData(A.buf); return A.buf; }
+
+  // הצליל שלנו כשמצליחים: צלצול קצר וגבוה, מעל התחום שהמנוע מקשיב לו
+  function chime(freqs) {
+    if (!data.set.sound || !A.ctx) return;
+    try {
+      var c = A.ctx, t0 = c.currentTime + 0.01;
+      freqs.forEach(function (f, i) {
+        var t = t0 + i * 0.07, o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
+        o.type = 'sine'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.01;
+        var g2 = c.createGain(); g2.gain.value = 0.25;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+        o.connect(g); o2.connect(g2); g2.connect(g); g.connect(c.destination);
+        o.start(t); o2.start(t); o.stop(t + 0.36); o2.stop(t + 0.36);
+      });
+    } catch (e) {}
+  }
+
+  // שהמסך לא ייכבה באמצע סבב
+  var wake = null;
+  function requestWake() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () {}); } catch (e) {} }
+  function releaseWake() { try { if (wake) wake.release(); } catch (e) {} wake = null; }
+
+  // ---- לולאה ראשית ----
+  var raf = 0, lastA = 0, lastFrame = 0;
+  function startLoop() { if (!raf) { lastFrame = performance.now(); raf = requestAnimationFrame(tick); } }
+  function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+  function tick() {
+    raf = requestAnimationFrame(tick);
+    var now = performance.now(), dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+    if (mode === 'count') countTick(now);
+    else if (mode === 'play') playTick(now, dt);
+  }
+
+  // ---- מסך השלבים ----
+  function starRow(n, cls) { var s = ''; for (var i = 0; i < 5; i++) s += '<svg class="' + cls + (i < n ? ' on' : '') + '"><use href="#i-star"/></svg>'; return s; }
+  function renderLevels() {
+    var html = '';
+    E.GROUPS.forEach(function (g, i) {
+      var open = isOpen(i), st = data.stars[i] || 0, best = data.best[i] || 0;
+      var side = open ? '<span class="stars" aria-label="' + st + ' of 5 stars">' + starRow(st, 'star') + '</span><span class="lv-best">Best ' + best + '</span>'
+        : '<svg class="icon" aria-label="Locked"><use href="#i-lock"/></svg>';
+      html += '<li><button class="lv' + (open ? '' : ' locked') + (st >= 5 ? ' done' : '') + '" data-i="' + i + '">' +
+        '<span class="lv-n">' + (i + 1) + '</span><span class="lv-main"><span class="lv-name">' + g.name + '</span>' +
+        '<span class="lv-chords">' + g.chords.join(' ') + '</span></span><span class="lv-side">' + side + '</span></button></li>';
+    });
+    $('#levelList').innerHTML = html;
+    $('#levelNote').textContent = data.set.noTimer ? 'No timer is on. Stars are not saved.' : 'Get 5 stars to open the next level.';
+  }
+  $('#levelList').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.lv'); if (!b) return;
+    var i = +b.dataset.i;
+    if (!isOpen(i)) { toast('Get 5 stars in level ' + i + ' first.'); return; }
+    begin(i);
+  });
+
+  // ---- התחלת סבב: מוודאים מיקרופון, ספירה לאחור, ואז משחק ----
+  var curGroup = 0, countStart = 0, countShown = 0;
+  function begin(i) {
+    curGroup = i;
+    initAudio().then(function () {
+      $('#micError').hidden = true;
+      show('count'); A.listener.resetCalibration();
+      countStart = performance.now(); countShown = 0; lastA = 0; $('#micFill').style.transform = 'scaleX(0)';
+      requestWake(); startLoop();
+    }).catch(function (err) { showMicError(micErrorText(err)); show('home'); });
+  }
+  function countTick(now) {
+    var el = (now - countStart) / 1000, n = Math.max(1, 3 - Math.floor(el));
+    if (n !== countShown) { countShown = n; var c = $('#countNum'); c.textContent = n; c.classList.remove('tick'); void c.offsetWidth; c.classList.add('tick'); }
+    if (now - lastA >= 33) {
+      lastA = now;
+      var rms = A.listener.calibrate(grab());
+      $('#micFill').style.transform = 'scaleX(' + Math.max(0, Math.min(1, (rms + 70) / 50)).toFixed(3) + ')';
+    }
+    if (el >= 3) { A.listener.finishCalibration(); startRound(); }
+  }
+
+  // ---- הסבב עצמו ----
+  var R = null, judge = E.createJudge(), neckRefs = null, disp = [0, 0, 0, 0, 0, 0], target = [0, 0, 0, 0, 0, 0];
+  var scoreEl = $('#score'), timerEl = $('#timer'), neckEl = $('#neck'), comboEl = $('#combo');
+  function startRound() {
+    R = { g: curGroup, list: E.GROUPS[curGroup].chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
+      t0: performance.now(), pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, noTimer: data.set.noTimer, L: E.LEVELS[data.set.level], timerText: '' };
+    scoreEl.textContent = '0'; setCombo(0); timerEl.classList.remove('low');
+    timerEl.textContent = R.timerText = R.noTimer ? '∞' : E.ROUND_SECONDS.toFixed(1);
+    show('play'); nextChord();
+  }
+  function nextChord() {
+    R.chord = E.pickNext(R.list, R.chord, Math.random);
+    R.info = E.chordInfo(R.chord);
+    var cn = $('#chordName'); cn.innerHTML = chordLabel(R.chord); cn.classList.remove('swap'); void cn.offsetWidth; cn.classList.add('swap');
+    neckRefs = buildNeck(neckEl, R.chord, data.set.lefty);
+    disp = [0, 0, 0, 0, 0, 0]; target = [0, 0, 0, 0, 0, 0];
+    judge.reset(performance.now() / 1000);
+  }
+  function remaining(now) { return E.ROUND_SECONDS + R.bonus - (now - R.t0 - R.pausedMs) / 1000; }
+  function playTick(now, dt) {
+    if (R.state === 'paused') return;
+    var rem = R.noTimer ? Infinity : remaining(now);
+    var txt = R.noTimer ? '∞' : Math.max(0, rem).toFixed(1);
+    if (txt !== R.timerText) { R.timerText = txt; timerEl.textContent = txt; timerEl.classList.toggle('low', rem <= 5); }
+    if (rem <= 0) { endRound(); return; }
+    if (R.state === 'win') { if (now >= R.winUntil) { R.state = 'play'; neckEl.classList.remove('win'); nextChord(); } return; }
+    if (now - lastA >= 30) {
+      lastA = now;
+      var t = now / 1000, r = A.listener.analyze(grab(), R.info, R.L, t);
+      for (var i = 0; i < 6; i++) target[i] = R.info.notes[i] == null ? 0 : Math.min(1, r.scores[i] / R.L.thr);
+      if (judge.step(r, R.info, R.L, t)) { win(now); return; }
+    }
+    // הפס עולה מהר ויורד לאט, כדי שלא יהבהב
+    for (var s = 0; s < 6; s++) {
+      if (R.info.notes[s] == null) continue;
+      var up = target[s] > disp[s], k = 1 - Math.pow(up ? 0.0005 : 0.06, dt);
+      disp[s] += (target[s] - disp[s]) * k;
+      neckRefs.fills[s].style.transform = 'scaleY(' + disp[s].toFixed(3) + ')';
+      neckRefs.strs[s].classList.toggle('full', disp[s] > 0.985);
+    }
+  }
+  function win(now) {
+    R.score++; scoreEl.textContent = R.score;
+    scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
+    for (var s = 0; s < 6; s++) if (R.info.notes[s] != null) { neckRefs.fills[s].style.transform = 'scaleY(1)'; neckRefs.strs[s].classList.add('full'); }
+    neckEl.classList.remove('win'); void neckEl.offsetWidth; neckEl.classList.add('win');
+    sparkles();
+    R.combo++;
+    if (R.combo >= E.COMBO_SIZE) {
+      R.bonus += E.COMBO_BONUS; R.combo = 0; setCombo(3); comboEl.classList.add('burst');
+      setTimeout(function () { comboEl.classList.remove('burst'); if (R && R.combo === 0) setCombo(0); }, 450);
+      if (!R.noTimer) floatBonus();
+      chime([2093, 2637, 3136]);
+    } else { setCombo(R.combo); chime([1568, 2093]); }
+    R.state = 'win'; R.winUntil = now + 400;
+  }
+  function setCombo(n) { [].forEach.call(comboEl.children, function (seg, i) { seg.classList.toggle('on', i < n); }); }
+  function sparkles() {
+    if (reduceMotion) return;
+    var fx = $('#fx'), nr = neckEl.querySelector('.board').getBoundingClientRect(), sr = scoreEl.getBoundingClientRect();
+    var tx = sr.left + sr.width / 2, ty = sr.top + sr.height / 2;
+    for (var i = 0; i < 14; i++) {
+      var s = document.createElement('i'); s.className = 'spark';
+      var x = nr.left + Math.random() * nr.width, y = nr.top + (0.15 + Math.random() * 0.8) * nr.height;
+      s.style.left = x + 'px'; s.style.top = y + 'px'; fx.appendChild(s);
+      var a = s.animate([{ transform: 'translate(0,0) rotate(45deg) scale(1.2)', opacity: 1 },
+        { transform: 'translate(' + (tx - x) + 'px,' + (ty - y) + 'px) rotate(225deg) scale(.4)', opacity: 0.3 }],
+        { duration: 480 + Math.random() * 300, delay: Math.random() * 90, easing: 'cubic-bezier(.55,0,.8,.2)', fill: 'forwards' });
+      a.onfinish = (function (el) { return function () { el.remove(); }; })(s);
+    }
+  }
+  function floatBonus() {
+    var b = document.createElement('div'); b.className = 'bonus'; b.textContent = '+' + E.COMBO_BONUS + 's';
+    var r = timerEl.getBoundingClientRect(); b.style.left = (r.left + 4) + 'px'; b.style.top = (r.bottom + 6) + 'px';
+    document.body.appendChild(b);
+    var a = b.animate([{ transform: 'translateY(14px) scale(.7)', opacity: 0 }, { transform: 'translateY(0) scale(1.1)', opacity: 1, offset: 0.25 },
+      { transform: 'translateY(-10px) scale(1)', opacity: 0 }], { duration: 1100, easing: 'ease-out', fill: 'forwards' });
+    a.onfinish = function () { b.remove(); };
+  }
+
+  // ---- השהיה ----
+  function pause() {
+    if (mode !== 'play' || !R || R.state === 'paused') return;
+    R.prev = R.state; R.state = 'paused'; R.pauseAt = performance.now(); $('#pauseBox').hidden = false;
+  }
+  function resume() {
+    if (!R || R.state !== 'paused') return;
+    R.pausedMs += performance.now() - R.pauseAt; $('#pauseBox').hidden = true;
+    if (A.ctx) A.ctx.resume().catch(function () {});
+    R.state = 'play'; neckEl.classList.remove('win');
+    if (R.prev === 'win') nextChord(); else judge.reset(performance.now() / 1000); // אחרי השהיה צריך לפרוט מחדש
+    requestWake();
+  }
+  function hideOverlays() { $('#pauseBox').hidden = true; $('#settings').hidden = true; }
+  $('#pauseBtn').addEventListener('click', pause);
+  $('#resumeBtn').addEventListener('click', resume);
+  $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
+  $('#quitBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); releaseWake(); R = null; renderLevels(); show('levels'); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) pause();
+    else if (mode === 'play' || mode === 'count') requestWake();
+  });
+
+  // ---- סוף הסבב ----
+  function endRound() {
+    stopLoop(); releaseWake();
+    var g = R.g, n = R.score, stars = E.starsFor(n), prev = data.best[g] || 0, isNew = n > prev;
+    var nowOpenNext = stars >= 5 && g + 1 < E.GROUPS.length && !isOpen(g + 1);
+    if (!R.noTimer) {
+      if (isNew) data.best[g] = n;
+      data.stars[g] = Math.max(data.stars[g] || 0, stars);
+      save();
+    }
+    $('#resTitle').textContent = (g + 1) + '. ' + E.GROUPS[g].name;
+    var sh = '';
+    E.STAR_AT.forEach(function (x, i) { sh += '<div class="' + (i < stars ? 'on' : '') + '" style="--i:' + i + '"><svg><use href="#i-star"/></svg>' + x + '</div>'; });
+    $('#resStars').innerHTML = sh;
+    $('#resStars').setAttribute('aria-label', stars + ' of 5 stars');
+    $('#ribbon').hidden = !isNew;
+    $('#resNum').textContent = n;
+    $('#resBest').textContent = isNew ? (prev > 0 ? 'Old best: ' + prev : '') : 'Best: ' + prev;
+    $('#nextBtn').hidden = !(g + 1 < E.GROUPS.length && isOpen(g + 1));
+    show('results');
+    if (nowOpenNext) toast('Level ' + (g + 2) + ' is open!');
+  }
+  $('#againBtn').addEventListener('click', function () { begin(curGroup); });
+  $('#nextBtn').addEventListener('click', function () { begin(curGroup + 1); });
+  $('#backBtn').addEventListener('click', function () { renderLevels(); show('levels'); });
+
+  // ---- הגדרות ----
+  function openSettings() {
+    $('#lv' + data.set.level[0].toUpperCase() + data.set.level.slice(1)).checked = true;
+    $('#optLefty').checked = data.set.lefty; $('#optNoTimer').checked = data.set.noTimer; $('#optSound').checked = data.set.sound;
+    $('#settings').hidden = false; $('#setDone').focus();
+  }
+  function closeSettings() {
+    var lv = document.querySelector('input[name=level]:checked');
+    data.set.level = lv ? lv.value : 'normal';
+    data.set.lefty = $('#optLefty').checked; data.set.noTimer = $('#optNoTimer').checked; data.set.sound = $('#optSound').checked;
+    save(); $('#settings').hidden = true; renderLevels(); buildNeck($('#demoNeck'), 'C', data.set.lefty);
+  }
+  $('#gearBtn').addEventListener('click', openSettings);
+  $('#setDone').addEventListener('click', closeSettings);
+  $('#settings').addEventListener('click', function (ev) { if (ev.target.id === 'settings') closeSettings(); });
+
+  // ---- מסך פתיחה ----
+  $('#startBtn').addEventListener('click', function () {
+    var b = $('#startBtn'); b.disabled = true;
+    initAudio().then(function () { $('#micError').hidden = true; renderLevels(); show('levels'); })
+      .catch(function (err) { showMicError(micErrorText(err)); })
+      .then(function () { b.disabled = false; });
+  });
+  buildNeck($('#demoNeck'), 'C', data.set.lefty);
+  renderLevels();
+})();
+</script>
+</body>
+</html>
