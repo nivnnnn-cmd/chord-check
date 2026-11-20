@@ -989,7 +989,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) pause();
     else if (mode === 'play' || mode === 'count') requestWake();
-    else if (mode === 'check' && C && C.state === 'play') { requestWake(); C.t0 = performance.now(); judge.reset(C.t0 / 1000); } // אחרי חזרה לדף הזמן מתחיל מחדש
+    else if (mode === 'check' && C && C.state === 'play') { requestWake(); if (A.ctx) A.ctx.resume().catch(function () {}); C.t0 = performance.now(); judge.reset(C.t0 / 1000); } // אחרי חזרה לדף הזמן מתחיל מחדש
   });
 
   // ---- סוף הסבב ----
@@ -1098,6 +1098,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   $('#chkCopy').addEventListener('click', function () {
     navigator.clipboard.writeText(JSON.stringify(data.check)).then(function () { toast('Copied'); }, function () { toast("Can't copy"); });
   });
+  window.addEventListener('hashchange', function () { if (location.hash === '#check') location.reload(); }); // כתובת שנפתחה בטאב שכבר פתוח
   if (location.hash === '#check') { var f = chkFirst(); show('checkScr'); chkView('start'); C = {}; chkShow(Math.min(f, checkList.length - 1)); C.state = 'idle'; }
 })();
 </script>
