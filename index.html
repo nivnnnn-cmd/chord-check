@@ -186,10 +186,10 @@ p{margin:0}
 #timer{justify-self:end;font:700 24px/1 var(--body);font-variant-numeric:tabular-nums;padding:9px 12px;border-radius:12px;
   background:rgba(243,233,214,.07);min-width:76px;text-align:center}
 #timer.low{color:#fff;background:var(--red)}
-#chordName{text-align:center;font-family:var(--display);font-weight:800;line-height:1;margin-top:6px;letter-spacing:-.02em}
-#chordName .root{font-size:88px}
-#chordName .q{font-size:50px;margin-left:2px}
-#chordName.swap{animation:swap .22s ease-out}
+#chordName,#chkName{text-align:center;font-family:var(--display);font-weight:800;line-height:1;margin-top:6px;letter-spacing:-.02em}
+#chordName .root,#chkName .root{font-size:88px}
+#chordName .q,#chkName .q{font-size:50px;margin-left:2px}
+#chordName.swap,#chkName.swap{animation:swap .22s ease-out}
 @keyframes swap{from{opacity:0;transform:translateY(8px)}}
 .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
 .stage .neck{--h:clamp(190px, calc(100vh - 360px), 430px)}
@@ -359,6 +359,22 @@ fieldset.row legend{float:left;padding:0}
     <button id="setDone" class="btn primary">Done</button>
   </div>
 </div>
+
+<!-- בדיקת צורות עם גיטרה אמיתית, נפתחת רק ב-#check -->
+<section id="checkScr" class="screen" hidden>
+  <div id="chkName"></div>
+  <div class="col stage"><div id="chkNeck" class="neck" role="img"></div></div>
+  <p id="chkNum" class="hint"></p>
+  <div id="chkGo" class="res-btns"><button id="chkStart" class="btn primary">Start</button></div>
+  <div id="chkBtns" class="res-btns" hidden>
+    <button id="chkSkip" class="btn ghost">Skip</button>
+    <button id="chkBad" class="btn ghost">Not working</button>
+  </div>
+  <div id="chkEnd" class="res-btns" hidden>
+    <p id="chkSum" class="res-title"></p>
+    <button id="chkCopy" class="btn primary">Copy</button>
+  </div>
+</section>
 
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="fx"></div>
@@ -689,6 +705,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
     if (!d || typeof d !== 'object') { d = {}; try { var old = JSON.parse(localStorage.getItem('chord-check-v1')); if (old && old.set) d.set = old.set; } catch (e) {} }
     if (!d.best || typeof d.best !== 'object' || Array.isArray(d.best)) d.best = {};
     if (!d.stars || typeof d.stars !== 'object' || Array.isArray(d.stars)) d.stars = {};
+    if (!d.check || typeof d.check !== 'object' || Array.isArray(d.check)) d.check = {};
     d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true, allOpen: false }, d.set || {});
     if (!E.LEVELS[d.set.level]) d.set.level = 'normal';
     return d;
@@ -707,7 +724,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -779,7 +796,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
         stream.getAudioTracks().forEach(function (t) { t.addEventListener('ended', onMicLost); });
       });
   }
-  function onMicLost() { if (mode === 'play' || mode === 'count') { stopLoop(); hideOverlays(); } showMicError('The mic stopped. Tap Start.'); show('home'); }
+  function onMicLost() { if (mode === 'play' || mode === 'count' || mode === 'check') { stopLoop(); hideOverlays(); } showMicError('The mic stopped. Tap Start.'); show('home'); }
   function showMicError(msg) { var e = $('#micError'); e.textContent = msg; e.hidden = false; }
   function micErrorText(err) {
     if (err && err.message === 'nomedia') return "This browser can't use the mic. Open the link in Safari.";
@@ -819,6 +836,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
     var now = performance.now(), dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     if (mode === 'count') countTick(now);
     else if (mode === 'play') playTick(now, dt);
+    else if (mode === 'check') checkTick(now);
   }
 
   // ---- מסך השלבים ----
@@ -867,7 +885,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
       var rms = A.listener.calibrate(grab());
       $('#micFill').style.transform = 'scaleX(' + Math.max(0, Math.min(1, (rms + 70) / 50)).toFixed(3) + ')';
     }
-    if (el >= 3) { A.listener.finishCalibration(); startRound(); }
+    if (el >= 3) { A.listener.finishCalibration(); if (curGroup === 'check') startCheck(); else startRound(); }
   }
 
   // ---- הסבב עצמו ----
@@ -971,6 +989,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) pause();
     else if (mode === 'play' || mode === 'count') requestWake();
+    else if (mode === 'check' && C && C.state === 'play') { requestWake(); C.t0 = performance.now(); judge.reset(C.t0 / 1000); } // אחרי חזרה לדף הזמן מתחיל מחדש
   });
 
   // ---- סוף הסבב ----
@@ -1030,6 +1049,56 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   });
   buildNeck($('#demoNeck'), 'C', data.set.lefty);
   renderLevels();
+
+  // ---- בדיקת צורות הספר עם גיטרה אמיתית (#check) ----
+  var CHECK_TYPES = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', '6', 'm6', 'dim', 'dim7', '5', '+', '7-5', 'm7-5', '7+5', 'm7+5', 'm9', '-5'];
+  var CHECK_ROOTS = 'A Bb B C C# D Eb E F F# G G#'.split(' ');
+  var checkList = [], C = null;
+  CHECK_TYPES.forEach(function (t) { CHECK_ROOTS.forEach(function (r) { if (E.CHORDS[r + t + '@b']) checkList.push(r + t + '@b'); }); });
+  function chkView(v) {
+    $('#chkGo').hidden = v !== 'start'; $('#chkBtns').hidden = v !== 'run'; $('#chkEnd').hidden = v !== 'end';
+    ['#chkName', '.stage', '#chkNum'].forEach(function (q) { $('#checkScr ' + q).hidden = v === 'end'; });
+  }
+  function chkFirst() { for (var i = 0; i < checkList.length; i++) if (!data.check[checkList[i]]) return i; return checkList.length; }
+  function chkShow(i) {
+    C.i = i; C.info = E.chordInfo(checkList[i]); C.state = 'play'; C.t0 = performance.now(); C.target = [0, 0, 0, 0, 0, 0];
+    $('#chkName').innerHTML = chordLabel(checkList[i]); $('#chkNum').textContent = (i + 1) + ' / ' + checkList.length;
+    C.refs = buildNeck($('#chkNeck'), checkList[i], data.set.lefty); $('#chkNeck').classList.remove('win');
+    judge.reset(C.t0 / 1000);
+  }
+  function chkEnd() {
+    stopLoop(); releaseWake(); mode = 'checkScr';
+    var n = { ok: 0, skipped: 0, bad: 0 };
+    checkList.forEach(function (id) { var c = data.check[id]; if (c) c.ok ? n.ok++ : c.skipped ? n.skipped++ : n.bad++; });
+    $('#chkSum').textContent = n.ok + ' passed, ' + n.skipped + ' skipped, ' + n.bad + ' not working';
+    chkView('end');
+  }
+  function chkRecord(rec) { data.check[checkList[C.i]] = rec; save(); if (C.i + 1 >= checkList.length) chkEnd(); else chkShow(C.i + 1); }
+  function startCheck() {
+    C = {}; var i = chkFirst(); show('checkScr'); mode = 'check';
+    if (i >= checkList.length) { chkEnd(); return; }
+    chkView('run'); chkShow(i);
+  }
+  function checkTick(now) {
+    if (C.state === 'win') { if (now >= C.winUntil) chkRecord(C.rec); return; }
+    if (now - lastA < 30) return;
+    lastA = now;
+    var L = E.LEVELS[data.set.level], t = now / 1000, r = A.listener.analyze(grab(), C.info, L, t);
+    for (var s = 0; s < 6; s++) if (C.info.notes[s] != null) {
+      C.refs.fills[s].style.transform = 'scaleY(' + Math.min(1, r.scores[s] / L.thr).toFixed(3) + ')';
+    }
+    if (judge.step(r, C.info, L, t)) {
+      C.state = 'win'; C.winUntil = now + 400; C.rec = { ok: true, sec: Math.round(now - C.t0) / 1000, skipped: false };
+      $('#chkNeck').classList.add('win'); chime([1568, 2093]);
+    }
+  }
+  $('#chkStart').addEventListener('click', function () { begin('check'); });
+  $('#chkSkip').addEventListener('click', function () { if (C && C.state === 'play') chkRecord({ ok: false, sec: null, skipped: true }); });
+  $('#chkBad').addEventListener('click', function () { if (C && C.state === 'play') chkRecord({ ok: false, sec: null, skipped: false }); });
+  $('#chkCopy').addEventListener('click', function () {
+    navigator.clipboard.writeText(JSON.stringify(data.check)).then(function () { toast('Copied'); }, function () { toast("Can't copy"); });
+  });
+  if (location.hash === '#check') { var f = chkFirst(); show('checkScr'); chkView('start'); C = {}; chkShow(Math.min(f, checkList.length - 1)); C.state = 'idle'; }
 })();
 </script>
 </body>
