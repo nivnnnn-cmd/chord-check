@@ -799,7 +799,10 @@ var Songs = (function () {
   // המדידות של מעבר, לפי כיוון. ערך פגום בשמירה נחשב ריק
   function vals(store, from, to) { var a = store[from + '>' + to]; return Array.isArray(a) ? a : []; }
   return {
-    QUOTA: 5, MAX_SEC: 15, KEEP: 20,
+    QUOTA: 5, MAX_SEC: 15, KEEP: 20, PAIR_SECONDS: 30,
+    // שלב ב: אותו מפתח לשני הכיוונים, והאקורד הבא הוא תמיד השני בזוג
+    pairKey: function (a, b) { return [a, b].sort().join('|'); },
+    pairNext: function (a, b, prev) { return prev === a ? b : a; },
     // מעבר מאקורד לעצמו לא נספר
     transitions: function (seq) {
       var by = {}, out = [];
@@ -1056,7 +1059,7 @@ var Songs = (function () {
   });
 
   // ---- התחלת סבב: מוודאים מיקרופון, ספירה לאחור, ואז משחק ----
-  var curGroup = 'basic', countStart = 0, countShown = 0;
+  var curGroup = 'basic', curPair = null, countStart = 0, countShown = 0;
   function begin(id) {
     curGroup = id;
     initAudio().then(function () {
@@ -1081,16 +1084,19 @@ var Songs = (function () {
   var R = null, judge = E.createJudge(), neckRefs = null, disp = [0, 0, 0, 0, 0, 0], target = [0, 0, 0, 0, 0, 0];
   var scoreEl = $('#score'), timerEl = $('#timer'), neckEl = $('#neck'), comboEl = $('#combo');
   function startRound() {
-    var song = curGroup === 'song' ? curSong : null; // שלב א תמיד 40 שניות, גם עם No timer, כדי שהסבב ייגמר ויציג את המעברים
-    R = { kind: song ? 'song' : 'level', song: song, trans: song && Songs.transitions(song.sequence), shownAt: 0, measure: false, from: null,
+    var pair = curGroup === 'pair', song = curGroup === 'song' || pair ? curSong : null; // שלבים א ו-ב הם סבב עם שעון קבוע, גם עם No timer, כדי שייגמר ויציג את המעברים
+    R = { kind: pair ? 'pair' : song ? 'song' : 'level', pair: pair ? curPair : null, secs: pair ? Songs.PAIR_SECONDS : E.ROUND_SECONDS, song: song, trans: song && Songs.transitions(song.sequence), shownAt: 0, measure: false, from: null,
       g: curGroup, list: song ? null : level(curGroup).chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
       t0: performance.now(), pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, noTimer: !song && data.set.noTimer, L: E.LEVELS[data.set.level], timerText: '' };
     scoreEl.textContent = '0'; setCombo(0); timerEl.classList.remove('low');
-    timerEl.textContent = R.timerText = R.noTimer ? '∞' : E.ROUND_SECONDS.toFixed(1);
+    comboEl.hidden = pair; // בהלוך וחזור אין קומבו
+    timerEl.textContent = R.timerText = R.noTimer ? '∞' : R.secs.toFixed(1);
     show('play'); nextChord();
   }
   function nextChord() {
-    if (R.kind === 'song') {
+    if (R.kind === 'pair') {
+      R.measure = !!R.chord; R.from = R.chord; R.chord = Songs.pairNext(R.pair[0], R.pair[1], R.chord); // כל החלפה נמדדת, חוץ מהראשונה
+    } else if (R.kind === 'song') {
       // הקפיצה להתחלת השיר והאקורד הראשון לא נמדדים
       var res = Songs.pickNext(R.trans, R.chord, R.song.sequence[0], Math.random);
       R.measure = !!R.chord && !res.jump; R.from = R.chord; R.chord = res.chord;
@@ -1102,7 +1108,7 @@ var Songs = (function () {
     R.shownAt = performance.now() / 1000;
     judge.reset(R.shownAt);
   }
-  function remaining(now) { return E.ROUND_SECONDS + R.bonus - (now - R.t0 - R.pausedMs) / 1000; }
+  function remaining(now) { return R.secs + R.bonus - (now - R.t0 - R.pausedMs) / 1000; }
   function playTick(now, dt) {
     if (R.state === 'paused') return;
     var rem = R.noTimer ? Infinity : remaining(now);
@@ -1127,13 +1133,14 @@ var Songs = (function () {
   }
   function win(now) {
     if (R.measure && Songs.record(data.changes, R.from, R.chord, now / 1000 - R.shownAt)) save(); // נשמר מיד, גם אם יוצאים באמצע
-    R.score++; scoreEl.textContent = R.score;
+    if (R.kind !== 'pair' || R.from != null) R.score++; // בהלוך וחזור המספר סופר החלפות, והאקורד הראשון לא
+    scoreEl.textContent = R.score;
     scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
     for (var s = 0; s < 6; s++) if (R.info.notes[s] != null) { neckRefs.fills[s].style.transform = 'scaleY(1)'; neckRefs.strs[s].classList.add('full'); }
     neckEl.classList.remove('win'); void neckEl.offsetWidth; neckEl.classList.add('win');
     sparkles();
-    R.combo++;
-    if (R.combo >= E.COMBO_SIZE) {
+    if (R.kind === 'pair') chime([1568, 2093]);
+    else if (++R.combo >= E.COMBO_SIZE) {
       R.bonus += E.COMBO_BONUS; R.combo = 0; setCombo(3); comboEl.classList.add('burst');
       setTimeout(function () { comboEl.classList.remove('burst'); if (R && R.combo === 0) setCombo(0); }, 450);
       if (!R.noTimer) floatBonus();
@@ -1185,7 +1192,7 @@ var Songs = (function () {
   $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
   $('#quitBtn').addEventListener('click', function () {
     hideOverlays(); stopLoop(); releaseWake();
-    if (R && R.kind === 'song') show('song'); else { renderLevels(); show('levels'); }
+    if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
     R = null;
   });
   document.addEventListener('visibilitychange', function () {
@@ -1202,7 +1209,7 @@ var Songs = (function () {
   }
   function endRound() {
     stopLoop(); releaseWake();
-    if (R.kind === 'song') { showChanges(); return; } // סבב של שיר לא נוגע בכוכבים ובשיאים של השלבים
+    if (R.song) { showChanges(); return; } // סבב של שיר לא נוגע בכוכבים ובשיאים של השלבים
     var g = R.g, i = idx(g), n = R.score, stars = E.starsFor(n), prev = data.best[g] || 0, isNew = n > prev;
     var nextId = i >= 0 && i + 1 < E.GROUPS.length ? E.GROUPS[i + 1].id : null;
     var firstFive = !R.noTimer && g !== ULTRA && stars >= 5 && (data.stars[g] || 0) < 5;
@@ -1276,11 +1283,14 @@ var Songs = (function () {
   }
   // ---- מסך המעברים, בסוף סבב של שיר ----
   function showChanges() {
-    var s = R.song, n = R.score, best = Math.max(n, data.songBest[s.id] || 0), ul = $('#chList');
-    data.songBest[s.id] = best; save();
+    var s = R.song, n = R.score, pair = R.kind === 'pair', ul = $('#chList'), best;
+    if (pair) { var pk = Songs.pairKey(R.pair[0], R.pair[1]); best = data.pairBest[pk] = Math.max(n, data.pairBest[pk] || 0); }
+    else best = data.songBest[s.id] = Math.max(n, data.songBest[s.id] || 0);
+    save();
     $('#chTitle').textContent = s.title;
+    $('#chStars').hidden = pair;
     bigStars($('#chStars'), E.starsFor(n)); // לתצוגה בלבד, לא נשמר
-    $('#chNum').textContent = 'Chords played ' + n + ' · Best ' + best;
+    $('#chNum').textContent = pair ? s.names[R.pair[0]] + ' ⇄ ' + s.names[R.pair[1]] + ': ' + n + ' switches · Best ' + best : 'Chords played ' + n + ' · Best ' + best;
     ul.innerHTML = '';
     Songs.stats(data.changes, R.trans).forEach(function (r) {
       var li = document.createElement('li'), k = Math.min(r.n, Songs.QUOTA);
@@ -1289,13 +1299,21 @@ var Songs = (function () {
       li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
       li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
       li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
+      li.children[3].addEventListener('click', function () { startPair([r.from, r.to]); });
       ul.appendChild(li);
     });
     $('#chDone').hidden = !Songs.quotaMet(data.changes, R.trans);
     show('changes');
   }
   $('#btnA').addEventListener('click', function () { begin('song'); });
-  $('#chAgain').addEventListener('click', function () { begin('song'); });
+  // שלב ב: שני אקורדים שנבחרו, או המעבר האיטי ביותר לפי המדידות
+  function startPair(p) { curPair = p; begin('pair'); }
+  $('#btnB').addEventListener('click', function () {
+    if (songPick.length === 2) return startPair(songPick.slice());
+    var slow = Songs.stats(data.changes, Songs.transitions(curSong.sequence))[0];
+    if (slow && slow.avg != null) startPair([slow.from, slow.to]); else toast('Pick two chords.');
+  });
+  $('#chAgain').addEventListener('click', function () { begin(R.g); });
   $('#chBack').addEventListener('click', function () { show('song'); });
   $('#songsBtn').addEventListener('click', openSongs);
   $('#songsBack').addEventListener('click', function () { renderLevels(); show('levels'); });
