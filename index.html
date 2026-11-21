@@ -262,6 +262,16 @@ fieldset.row legend{float:left;padding:0}
 .played b{font:800 96px/1 var(--display)}
 .res-best{color:var(--muted);font-size:17px;font-variant-numeric:tabular-nums}
 .res-btns{display:flex;flex-direction:column;gap:12px;width:100%;margin-top:6px}
+/* מרווח אוטומטי ולא justify-content, כדי שרשימה ארוכה תיגלל מההתחלה */
+#changes .col{margin:auto;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+#chTitle{font-size:26px;font-weight:800}
+.ch-list{list-style:none;margin:0;padding:0;width:100%}
+.ch-list li{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:8px 4px;text-align:left}
+.ch-list li+li{border-top:1px solid var(--line)}
+.ch-pair{font:700 18px/1.2 var(--display)}
+.ch-sec{font-variant-numeric:tabular-nums}
+.ch-dots{color:var(--brass);letter-spacing:2px}
+.ch-list .btn{width:auto;min-height:44px;padding:0 14px;font-size:16px}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -417,6 +427,22 @@ fieldset.row legend{float:left;padding:0}
       <button id="btnA" class="btn primary">A · Play the changes</button>
       <button id="btnB" class="btn ghost">B · Practice one change</button>
       <button id="btnC" class="btn ghost">C · Play the song</button>
+    </div>
+  </div>
+</section>
+
+<!-- מסך המעברים -->
+<section id="changes" class="screen" hidden>
+  <div class="col">
+    <h2 id="chTitle" dir="rtl"></h2>
+    <div id="chStars" class="bigstars"></div>
+    <p id="chNum" class="res-best"></p>
+    <ul id="chList" class="ch-list"></ul>
+    <p id="chDone" class="small" hidden>Done! Every change has 5 tries.</p>
+    <div class="res-btns">
+      <button id="chAgain" class="btn primary">Again</button>
+      <button id="chSong" class="btn ghost">Play the song</button>
+      <button id="chBack" class="btn ghost">Back</button>
     </div>
   </div>
 </section>
@@ -739,7 +765,49 @@ var Songs = (function () {
   function unb64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
   function pipe(bytes, stream) { return new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer().then(function (a) { return new Uint8Array(a); }); }
   function aesKey(keyB64, use) { return crypto.subtle.importKey('raw', unb64(keyB64), 'AES-GCM', false, [use]); }
+  // המדידות של מעבר, לפי כיוון. ערך פגום בשמירה נחשב ריק
+  function vals(store, from, to) { var a = store[from + '>' + to]; return Array.isArray(a) ? a : []; }
   return {
+    QUOTA: 5, MAX_SEC: 15, KEEP: 20,
+    // מעבר מאקורד לעצמו לא נספר
+    transitions: function (seq) {
+      var by = {}, out = [];
+      for (var i = 1; i < seq.length; i++) {
+        if (seq[i - 1] === seq[i]) continue;
+        var k = seq[i - 1] + '>' + seq[i];
+        if (!by[k]) out.push(by[k] = { from: seq[i - 1], to: seq[i], count: 0 });
+        by[k].count++;
+      }
+      return out;
+    },
+    // משקל של שורש מספר ההופעות: מעבר נפוץ מופיע יותר, אבל לא באותו יחס כמו בשיר. בלי המשך קופצים להתחלה
+    pickNext: function (trans, prev, first, rnd) {
+      var opts = trans.filter(function (t) { return t.from === prev; }), sum = 0, i;
+      if (prev == null || !opts.length) return { chord: first, jump: true };
+      opts.forEach(function (t) { sum += Math.sqrt(t.count); });
+      var x = rnd() * sum;
+      for (i = 0; i < opts.length - 1; i++) { x -= Math.sqrt(opts[i].count); if (x < 0) break; }
+      return { chord: opts[i].to, jump: false };
+    },
+    // מעל MAX_SEC כנראה הגיטרה הונחה, אז לא שומרים
+    record: function (store, from, to, sec) {
+      if (!(sec > 0 && sec <= this.MAX_SEC)) return false;
+      var a = store[from + '>' + to] = vals(store, from, to);
+      a.push(Math.round(sec * 100) / 100);
+      if (a.length > this.KEEP) a.splice(0, a.length - this.KEEP);
+      return true;
+    },
+    // מהאיטי למהיר. מעבר בלי מדידות בסוף
+    stats: function (store, trans) {
+      return trans.map(function (t) {
+        var a = vals(store, t.from, t.to);
+        return { from: t.from, to: t.to, avg: a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : null, n: a.length };
+      }).sort(function (p, q) { return (q.avg == null ? -1 : q.avg) - (p.avg == null ? -1 : p.avg); });
+    },
+    quotaMet: function (store, trans) {
+      var q = this.QUOTA;
+      return trans.length > 0 && trans.every(function (t) { return vals(store, t.from, t.to).length >= q; });
+    },
     keyFromBook: function (bytes) { return crypto.subtle.digest('SHA-256', bytes).then(function (h) { return b64(new Uint8Array(h)); }); },
     lock: function (json, keyB64) {
       var iv = crypto.getRandomValues(new Uint8Array(12));
@@ -813,7 +881,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'songs', 'song'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'songs', 'song', 'changes'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -858,8 +926,8 @@ var Songs = (function () {
     el.setAttribute('aria-label', E.nameOf(name) + ' chord');
     return { fills: [].slice.call(el.querySelectorAll('.fill')), strs: [].slice.call(el.querySelectorAll('.str')) };
   }
-  function chordLabel(id) {
-    var m = /^([A-G][#b]?)(.*)$/.exec(E.nameOf(id));
+  function chordLabel(id, text) {
+    var m = /^([A-G][#b]?)(.*)$/.exec(text || E.nameOf(id));
     return '<span class="root">' + m[1] + '</span>' + (m[2] ? '<span class="q">' + m[2] + '</span>' : '');
   }
 
@@ -981,19 +1049,26 @@ var Songs = (function () {
   var R = null, judge = E.createJudge(), neckRefs = null, disp = [0, 0, 0, 0, 0, 0], target = [0, 0, 0, 0, 0, 0];
   var scoreEl = $('#score'), timerEl = $('#timer'), neckEl = $('#neck'), comboEl = $('#combo');
   function startRound() {
-    R = { g: curGroup, list: level(curGroup).chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
+    var song = curGroup === 'song' ? curSong : null;
+    R = { kind: song ? 'song' : 'level', song: song, trans: song && Songs.transitions(song.sequence), shownAt: 0, measure: false, from: null,
+      g: curGroup, list: song ? null : level(curGroup).chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
       t0: performance.now(), pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, noTimer: data.set.noTimer, L: E.LEVELS[data.set.level], timerText: '' };
     scoreEl.textContent = '0'; setCombo(0); timerEl.classList.remove('low');
     timerEl.textContent = R.timerText = R.noTimer ? '∞' : E.ROUND_SECONDS.toFixed(1);
     show('play'); nextChord();
   }
   function nextChord() {
-    R.chord = E.pickNext(R.list, R.chord, Math.random);
+    if (R.kind === 'song') {
+      // הקפיצה להתחלת השיר והאקורד הראשון לא נמדדים
+      var res = Songs.pickNext(R.trans, R.chord, R.song.sequence[0], Math.random);
+      R.measure = !!R.chord && !res.jump; R.from = R.chord; R.chord = res.chord;
+    } else R.chord = E.pickNext(R.list, R.chord, Math.random);
     R.info = E.chordInfo(R.chord);
-    var cn = $('#chordName'); cn.innerHTML = chordLabel(R.chord); cn.classList.remove('swap'); void cn.offsetWidth; cn.classList.add('swap');
+    var cn = $('#chordName'); cn.innerHTML = chordLabel(R.chord, R.song && R.song.names[R.chord]); cn.classList.remove('swap'); void cn.offsetWidth; cn.classList.add('swap');
     neckRefs = buildNeck(neckEl, R.chord, data.set.lefty);
     disp = [0, 0, 0, 0, 0, 0]; target = [0, 0, 0, 0, 0, 0];
-    judge.reset(performance.now() / 1000);
+    R.shownAt = performance.now() / 1000;
+    judge.reset(R.shownAt);
   }
   function remaining(now) { return E.ROUND_SECONDS + R.bonus - (now - R.t0 - R.pausedMs) / 1000; }
   function playTick(now, dt) {
@@ -1019,6 +1094,7 @@ var Songs = (function () {
     }
   }
   function win(now) {
+    if (R.measure && Songs.record(data.changes, R.from, R.chord, now / 1000 - R.shownAt)) save(); // נשמר מיד, גם אם יוצאים באמצע
     R.score++; scoreEl.textContent = R.score;
     scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
     for (var s = 0; s < 6; s++) if (R.info.notes[s] != null) { neckRefs.fills[s].style.transform = 'scaleY(1)'; neckRefs.strs[s].classList.add('full'); }
@@ -1068,13 +1144,18 @@ var Songs = (function () {
     if (A.ctx) A.ctx.resume().catch(function () {});
     R.state = 'play'; neckEl.classList.remove('win');
     if (R.prev === 'win') nextChord(); else judge.reset(performance.now() / 1000); // אחרי השהיה צריך לפרוט מחדש
+    R.measure = false; // הזמן של המעבר הזה כולל את ההשהיה
     requestWake();
   }
   function hideOverlays() { $('#pauseBox').hidden = true; $('#settings').hidden = true; }
   $('#pauseBtn').addEventListener('click', pause);
   $('#resumeBtn').addEventListener('click', resume);
   $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
-  $('#quitBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); releaseWake(); R = null; renderLevels(); show('levels'); });
+  $('#quitBtn').addEventListener('click', function () {
+    hideOverlays(); stopLoop(); releaseWake();
+    if (R && R.kind === 'song') show('song'); else { renderLevels(); show('levels'); }
+    R = null;
+  });
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) pause();
     else if (mode === 'play' || mode === 'count') requestWake();
@@ -1082,8 +1163,14 @@ var Songs = (function () {
   });
 
   // ---- סוף הסבב ----
+  function bigStars(el, stars) {
+    var sh = '';
+    E.STAR_AT.forEach(function (x, i) { sh += '<div class="' + (i < stars ? 'on' : '') + '" style="--i:' + i + '"><svg><use href="#i-star"/></svg>' + x + '</div>'; });
+    el.innerHTML = sh; el.setAttribute('aria-label', stars + ' of 5 stars');
+  }
   function endRound() {
     stopLoop(); releaseWake();
+    if (R.kind === 'song') { showChanges(); return; } // סבב של שיר לא נוגע בכוכבים ובשיאים של השלבים
     var g = R.g, i = idx(g), n = R.score, stars = E.starsFor(n), prev = data.best[g] || 0, isNew = n > prev;
     var nextId = i >= 0 && i + 1 < E.GROUPS.length ? E.GROUPS[i + 1].id : null;
     var firstFive = !R.noTimer && g !== ULTRA && stars >= 5 && (data.stars[g] || 0) < 5;
@@ -1094,10 +1181,7 @@ var Songs = (function () {
       save();
     }
     $('#resTitle').textContent = g === ULTRA ? 'Ultra' : (i + 1) + '. ' + E.GROUPS[i].name;
-    var sh = '';
-    E.STAR_AT.forEach(function (x, i) { sh += '<div class="' + (i < stars ? 'on' : '') + '" style="--i:' + i + '"><svg><use href="#i-star"/></svg>' + x + '</div>'; });
-    $('#resStars').innerHTML = sh;
-    $('#resStars').setAttribute('aria-label', stars + ' of 5 stars');
+    bigStars($('#resStars'), stars);
     $('#ribbon').hidden = !isNew;
     $('#resNum').textContent = n;
     $('#resBest').textContent = isNew ? (prev > 0 ? 'Old best: ' + prev : '') : 'Best: ' + prev;
@@ -1158,6 +1242,29 @@ var Songs = (function () {
     $('#btnA').disabled = one; $('#btnB').disabled = one; $('#songOne').hidden = !one;
     show('song');
   }
+  // ---- מסך המעברים, בסוף סבב של שיר ----
+  function showChanges() {
+    var s = R.song, n = R.score, best = Math.max(n, data.songBest[s.id] || 0), ul = $('#chList');
+    data.songBest[s.id] = best; save();
+    $('#chTitle').textContent = s.title;
+    bigStars($('#chStars'), E.starsFor(n)); // לתצוגה בלבד, לא נשמר
+    $('#chNum').textContent = 'Chords played ' + n + ' · Best ' + best;
+    ul.innerHTML = '';
+    Songs.stats(data.changes, R.trans).forEach(function (r) {
+      var li = document.createElement('li'), k = Math.min(r.n, Songs.QUOTA);
+      li.innerHTML = '<span class="ch-pair"></span><span class="ch-sec"></span><span class="ch-dots"></span><button class="btn ghost">Practice</button>';
+      li.children[0].textContent = s.names[r.from] + ' → ' + s.names[r.to];
+      li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
+      li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
+      li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
+      ul.appendChild(li);
+    });
+    $('#chDone').hidden = !Songs.quotaMet(data.changes, R.trans);
+    show('changes');
+  }
+  $('#btnA').addEventListener('click', function () { begin('song'); });
+  $('#chAgain').addEventListener('click', function () { begin('song'); });
+  $('#chBack').addEventListener('click', function () { show('song'); });
   $('#songsBtn').addEventListener('click', openSongs);
   $('#songsBack').addEventListener('click', function () { renderLevels(); show('levels'); });
   $('#songBack').addEventListener('click', function () { show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
