@@ -216,6 +216,22 @@ p{margin:0}
 .combo i{display:block;width:14px;height:48px;border-radius:7px;background:rgba(243,233,214,.1);transition:background .15s ease, box-shadow .15s ease}
 .combo i.on{background:var(--lit);box-shadow:0 0 12px rgba(63,220,124,.5)}
 .combo.burst i{background:var(--lit-hi);box-shadow:0 0 18px rgba(180,255,208,.8)}
+.sheet-top{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.sheet-top .iconbtn{background:rgba(243,233,214,.07);flex:none}
+#sheetName{font:800 44px/1 var(--display);flex:1;text-align:center}
+#sheetEnd{flex:1;display:flex;flex-direction:column;gap:10px;text-align:center;font-weight:700;font-size:20px}
+#sheetEnd .btn{min-height:48px}
+#sheetBody{font-size:21px;line-height:1.3;padding:14px 0 45vh}
+#sheetBody p,#sheetBody .ln-chords{margin:0 0 10px}
+#sheetBody .ln-text{color:var(--muted);min-height:.6em}
+#sheetBody .ln{margin:0 0 12px}
+#sheetBody .seg{display:inline-flex;flex-direction:column;align-items:flex-start;max-width:100%;background:none;padding:0;border-radius:0;white-space:pre-wrap;vertical-align:top}
+#sheetBody .ch{direction:ltr;font:800 17px/1.5 var(--display);color:var(--brass);padding:0 6px;border-radius:8px;min-height:1.5em}
+#sheetBody .ln-chords{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+#sheetBody .lb{color:var(--muted)}
+#sheetBody .ch.now{background:var(--brass);color:var(--brass-ink)}
+#sheetBody .ch.done{color:var(--lit)}
+#sheetBody .ch.done::after{content:' ✓'}
 .hint{text-align:center;color:var(--muted);font-size:17px;padding-bottom:4px}
 .bonus{position:fixed;font:800 26px/1 var(--display);color:var(--lit-hi);pointer-events:none;z-index:30;text-shadow:0 2px 12px rgba(63,220,124,.6)}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:20;overflow:hidden}
@@ -475,6 +491,23 @@ fieldset.row legend{float:left;padding:0}
       <button id="chSong" class="btn ghost">Play the song</button>
       <button id="chBack" class="btn ghost">Back</button>
     </div>
+  </div>
+</section>
+
+<!-- מסך הדף: לנגן את השיר -->
+<section id="sheet" class="screen" hidden>
+  <div class="col">
+    <div class="sheet-top">
+      <button id="shPause" class="iconbtn" aria-label="Pause"><svg class="icon"><use href="#i-pause"/></svg></button>
+      <div id="sheetName" aria-live="polite"></div>
+      <div id="sheetNeck" class="neck mini" role="img"></div>
+      <div id="sheetEnd" hidden>
+        <p>You played the whole song!</p>
+        <button id="shAgain" class="btn primary">Again</button>
+        <button id="shBack" class="btn ghost">Back</button>
+      </div>
+    </div>
+    <div id="sheetBody" dir="rtl"></div>
   </div>
 </section>
 
@@ -916,7 +949,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'songs', 'song', 'changes'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'songs', 'song', 'changes', 'sheet'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -988,7 +1021,7 @@ var Songs = (function () {
         stream.getAudioTracks().forEach(function (t) { t.addEventListener('ended', onMicLost); });
       });
   }
-  function onMicLost() { if (mode === 'play' || mode === 'count' || mode === 'check') { stopLoop(); hideOverlays(); } showMicError('The mic stopped. Tap Start.'); show('home'); }
+  function onMicLost() { if (mode === 'play' || mode === 'count' || mode === 'check' || mode === 'sheet') { stopLoop(); hideOverlays(); } showMicError('The mic stopped. Tap Start.'); show('home'); }
   function showMicError(msg) { var e = $('#micError'); e.textContent = msg; e.hidden = false; }
   function micErrorText(err) {
     if (err && err.message === 'nomedia') return "This browser can't use the mic. Open the link in Safari.";
@@ -1029,6 +1062,7 @@ var Songs = (function () {
     if (mode === 'count') countTick(now);
     else if (mode === 'play') playTick(now, dt);
     else if (mode === 'check') checkTick(now);
+    else if (mode === 'sheet') sheetTick(now);
   }
 
   // ---- מסך השלבים ----
@@ -1077,7 +1111,7 @@ var Songs = (function () {
       var rms = A.listener.calibrate(grab());
       $('#micFill').style.transform = 'scaleX(' + Math.max(0, Math.min(1, (rms + 70) / 50)).toFixed(3) + ')';
     }
-    if (el >= 3) { A.listener.finishCalibration(); if (curGroup === 'check') startCheck(); else startRound(); }
+    if (el >= 3) { A.listener.finishCalibration(); if (curGroup === 'check') startCheck(); else if (curGroup === 'sheet') startSheet(); else startRound(); }
   }
 
   // ---- הסבב עצמו ----
@@ -1174,7 +1208,7 @@ var Songs = (function () {
 
   // ---- השהיה ----
   function pause() {
-    if (mode !== 'play' || !R || R.state === 'paused') return;
+    if ((mode !== 'play' && mode !== 'sheet') || !R || R.state === 'paused' || R.state === 'done') return;
     R.prev = R.state; R.state = 'paused'; R.pauseAt = performance.now(); $('#pauseBox').hidden = false;
   }
   function resume() {
@@ -1182,12 +1216,13 @@ var Songs = (function () {
     R.pausedMs += performance.now() - R.pauseAt; $('#pauseBox').hidden = true;
     if (A.ctx) A.ctx.resume().catch(function () {});
     R.state = 'play'; neckEl.classList.remove('win');
-    if (R.prev === 'win') nextChord(); else judge.reset(performance.now() / 1000); // אחרי השהיה צריך לפרוט מחדש
+    if (R.prev === 'win') (R.kind === 'sheet' ? sheetNext : nextChord)(); else judge.reset(performance.now() / 1000); // אחרי השהיה צריך לפרוט מחדש
     R.measure = false; // הזמן של המעבר הזה כולל את ההשהיה
     requestWake();
   }
   function hideOverlays() { $('#pauseBox').hidden = true; $('#settings').hidden = true; }
   $('#pauseBtn').addEventListener('click', pause);
+  $('#shPause').addEventListener('click', pause);
   $('#resumeBtn').addEventListener('click', resume);
   $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
   $('#quitBtn').addEventListener('click', function () {
@@ -1197,7 +1232,7 @@ var Songs = (function () {
   });
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) pause();
-    else if (mode === 'play' || mode === 'count') requestWake();
+    else if (mode === 'play' || mode === 'count' || mode === 'sheet') requestWake();
     else if (mode === 'check' && C && C.state === 'play') { requestWake(); if (A.ctx) A.ctx.resume().catch(function () {}); C.t0 = performance.now(); judge.reset(C.t0 / 1000); } // אחרי חזרה לדף הזמן מתחיל מחדש
   });
 
@@ -1281,6 +1316,65 @@ var Songs = (function () {
     $('#btnA').disabled = one; $('#btnB').disabled = one; $('#songOne').hidden = !one;
     show('song');
   }
+  // ---- שלב ג: הדף של השיר. האקורדים באותו סדר כמו song.sequence, ולא נרשמות מדידות ----
+  var shEls = [];
+  function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function renderSheet(song) {
+    var html = '', n = 0;
+    var chd = function (c) { return '<b class="ch"' + (c.shape ? ' data-i="' + (n++) + '"' : '') + '>' + esc(c.text) + '</b>'; };
+    song.lines.forEach(function (l) {
+      if (l.lyric != null && l.chords) {
+        // כל אקורד פותח קטע, והקטע נמשך עד האקורד הבא. המילים לפני האקורד הראשון בקטע בלי אקורד
+        var cs = l.chords.slice().sort(function (a, b) { return a.at - b.at; }), segs = '', first = cs.length ? cs[0].at : l.lyric.length;
+        if (first > 0) segs += '<span class="seg"><b class="ch"></b>' + esc(l.lyric.slice(0, first)) + '</span>';
+        cs.forEach(function (c, k) { segs += '<span class="seg">' + chd(c) + esc(l.lyric.slice(c.at, k + 1 < cs.length ? cs[k + 1].at : undefined)) + '</span>'; });
+        html += '<p class="ln">' + segs + '</p>';
+      } else if (l.chords) {
+        html += '<div class="ln-chords">' + (l.label ? '<span class="lb">' + esc(l.label) + '</span>' : '') + l.chords.map(chd).join('') + '</div>';
+      } else html += '<p class="ln-text">' + esc(l.text || '') + '</p>';
+    });
+    $('#sheetBody').innerHTML = html;
+    shEls = [].slice.call($('#sheetBody').querySelectorAll('.ch[data-i]'));
+  }
+  function startSheet() {
+    var song = curSong;
+    R = { kind: 'sheet', song: song, g: 'sheet', idx: 0, n: song.sequence.length, chord: null, info: null, score: 0, noTimer: true,
+      pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, L: E.LEVELS[data.set.level] };
+    renderSheet(song);
+    $('#sheetEnd').hidden = true; $('#sheetName').hidden = false; $('#sheetNeck').hidden = false; $('#shPause').hidden = false;
+    show('sheet'); $('#sheet').scrollTop = 0; sheetNext();
+  }
+  function sheetNext() {
+    if (R.idx >= R.n) { // סוף השיר
+      stopLoop(); releaseWake(); R.state = 'done';
+      $('#sheetName').hidden = true; $('#sheetNeck').hidden = true; $('#shPause').hidden = true; $('#sheetEnd').hidden = false;
+      return;
+    }
+    R.chord = R.song.sequence[R.idx]; R.info = E.chordInfo(R.chord);
+    $('#sheetName').innerHTML = chordLabel(R.chord, R.song.names[R.chord]);
+    buildNeck($('#sheetNeck'), R.chord, data.set.lefty);
+    var el = shEls[R.idx];
+    if (el) { el.classList.add('now'); el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); }
+    R.state = 'play'; judge.reset(performance.now() / 1000);
+  }
+  function sheetTick(now) {
+    if (!R || R.state === 'paused') return;
+    if (R.state === 'win') { if (now >= R.winUntil) sheetNext(); return; }
+    if (now - lastA < 30) return;
+    lastA = now;
+    var t = now / 1000, r = A.listener.analyze(grab(), R.info, R.L, t);
+    if (judge.step(r, R.info, R.L, t)) sheetWin(now);
+  }
+  function sheetWin(now) {
+    var el = shEls[R.idx]; if (el) { el.classList.remove('now'); el.classList.add('done'); }
+    chime([1568, 2093]);
+    R.idx++; R.state = 'win'; R.winUntil = now + 400; // כמו בסבב הרגיל: הפסקה קצרה, כדי שאותו אקורד פעמיים ברצף לא יזוהה מהצליל הקודם
+  }
+  $('#btnC').addEventListener('click', function () { begin('sheet'); });
+  $('#chSong').addEventListener('click', function () { begin('sheet'); });
+  $('#shAgain').addEventListener('click', function () { begin('sheet'); });
+  $('#shBack').addEventListener('click', function () { show('song'); });
+
   // ---- מסך המעברים, בסוף סבב של שיר ----
   function showChanges() {
     var s = R.song, n = R.score, pair = R.kind === 'pair', ul = $('#chList'), best;
