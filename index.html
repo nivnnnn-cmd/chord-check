@@ -1121,8 +1121,10 @@ var Songs = (function () {
     }).then(function (l) { songList = l; return l; });
   }
   function renderResults() {
-    var r = Songs.search(songList, $('#songQuery').value), ul = $('#songResults');
+    var ul = $('#songResults');
     ul.innerHTML = '';
+    if (!songList) return; // הרשימה עוד נטענת
+    var r = Songs.search(songList, $('#songQuery').value);
     if (!r.length) { if ($('#songQuery').value.trim()) { var n = document.createElement('li'); n.className = 'small'; n.textContent = 'No song found'; ul.appendChild(n); } return; }
     r.forEach(function (s) {
       var li = document.createElement('li'), b = document.createElement('button');
@@ -1137,7 +1139,7 @@ var Songs = (function () {
     $('#songAdd').hidden = has; $('#songFind').hidden = !has;
     if (!has) return;
     $('#songResults').innerHTML = ''; $('#songQuery').value = '';
-    loadSongs().then(function () { $('#songQuery').focus(); }, function () { $('#songFind').hidden = true; songMsg("Can't load the songs. Try again."); });
+    loadSongs().then(function () { renderResults(); $('#songQuery').focus(); }, function () { $('#songFind').hidden = true; songMsg("Can't load the songs. Try again."); });
   }
   function openSong(s) {
     curSong = s; songPick = [];
@@ -1158,16 +1160,15 @@ var Songs = (function () {
   }
   $('#songsBtn').addEventListener('click', openSongs);
   $('#songsBack').addEventListener('click', function () { renderLevels(); show('levels'); });
-  $('#songBack').addEventListener('click', openSongs);
+  $('#songBack').addEventListener('click', function () { show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
   $('#songQuery').addEventListener('input', renderResults);
   $('#bookFile').addEventListener('change', function (ev) {
     var f = ev.target.files[0]; ev.target.value = '';
     if (!f) return;
     songMsg('');
-    var key;
     // כל כשל בקריאה או בפענוח הוא "ספר לא נתמך". רק כשל רשת מקבל הודעה אחרת
     f.arrayBuffer().then(function (b) { return Songs.keyFromBook(b); }).then(function (k) {
-      key = k; var old = data.songKey; data.songKey = k; songList = null;
+      var old = data.songKey; data.songKey = k; songList = null;
       return loadSongs().catch(function (e) { data.songKey = old; throw e; });
     }).then(function () { save(); openSongs(); }, function (e) {
       songMsg(e && e.message === 'net' ? "Can't load the songs. Try again." : 'This book is not supported.');
