@@ -927,7 +927,7 @@ var Songs = (function () {
     return { fills: [].slice.call(el.querySelectorAll('.fill')), strs: [].slice.call(el.querySelectorAll('.str')) };
   }
   function chordLabel(id, text) {
-    var m = /^([A-G][#b]?)(.*)$/.exec(text || E.nameOf(id));
+    var m = /^([A-G][#b]?)(.*)$/.exec(text || E.nameOf(id)) || [0, text || E.nameOf(id), '']; // שם בפורמט אחר מוצג כמו שהוא
     return '<span class="root">' + m[1] + '</span>' + (m[2] ? '<span class="q">' + m[2] + '</span>' : '');
   }
 
@@ -1049,10 +1049,10 @@ var Songs = (function () {
   var R = null, judge = E.createJudge(), neckRefs = null, disp = [0, 0, 0, 0, 0, 0], target = [0, 0, 0, 0, 0, 0];
   var scoreEl = $('#score'), timerEl = $('#timer'), neckEl = $('#neck'), comboEl = $('#combo');
   function startRound() {
-    var song = curGroup === 'song' ? curSong : null;
+    var song = curGroup === 'song' ? curSong : null; // שלב א תמיד 40 שניות, גם עם No timer, כדי שהסבב ייגמר ויציג את המעברים
     R = { kind: song ? 'song' : 'level', song: song, trans: song && Songs.transitions(song.sequence), shownAt: 0, measure: false, from: null,
       g: curGroup, list: song ? null : level(curGroup).chords, chord: null, info: null, score: 0, combo: 0, bonus: 0,
-      t0: performance.now(), pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, noTimer: data.set.noTimer, L: E.LEVELS[data.set.level], timerText: '' };
+      t0: performance.now(), pausedMs: 0, pauseAt: 0, state: 'play', winUntil: 0, noTimer: !song && data.set.noTimer, L: E.LEVELS[data.set.level], timerText: '' };
     scoreEl.textContent = '0'; setCombo(0); timerEl.classList.remove('low');
     timerEl.textContent = R.timerText = R.noTimer ? '∞' : E.ROUND_SECONDS.toFixed(1);
     show('play'); nextChord();
