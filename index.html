@@ -132,6 +132,12 @@ p{margin:0}
 .home-top h1{font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1}
 .home-top h1 span{color:var(--brass)}
 .home-top p{color:var(--muted);font-size:18px;max-width:30ch}
+.mini{--h:120px;--nw:16px;width:130px;grid-template-rows:24px var(--h)}
+#c41Run{align-items:center;text-align:center}
+#c41Neck{--h:210px;width:min(62vw,250px)}
+#c41Minis{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:14px}
+#c41Minis figure{margin:0;text-align:center}
+#c41Minis figcaption{font-weight:700;margin-bottom:4px}
 .demo{--h:min(34vh, 250px);width:min(58vw, 230px);margin-top:6px}
 .demo .fill{animation:demo 3.6s ease-in-out infinite;animation-delay:calc(var(--i)*.16s)}
 @keyframes demo{0%,8%{transform:scaleY(0)}40%,78%{transform:scaleY(1)}100%{transform:scaleY(0)}}
@@ -186,9 +192,9 @@ p{margin:0}
 #timer{justify-self:end;font:700 24px/1 var(--body);font-variant-numeric:tabular-nums;padding:9px 12px;border-radius:12px;
   background:rgba(243,233,214,.07);min-width:76px;text-align:center}
 #timer.low{color:#fff;background:var(--red)}
-#chordName,#chkName{text-align:center;font-family:var(--display);font-weight:800;line-height:1;margin-top:6px;letter-spacing:-.02em}
-#chordName .root,#chkName .root{font-size:88px}
-#chordName .q,#chkName .q{font-size:50px;margin-left:2px}
+#chordName,#chkName,#c41Name{text-align:center;font-family:var(--display);font-weight:800;line-height:1;margin-top:6px;letter-spacing:-.02em}
+#chordName .root,#chkName .root,#c41Name .root{font-size:88px}
+#chordName .q,#chkName .q,#c41Name .q{font-size:50px;margin-left:2px}
 #chordName.swap,#chkName.swap{animation:swap .22s ease-out}
 @keyframes swap{from{opacity:0;transform:translateY(8px)}}
 .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
@@ -373,6 +379,31 @@ fieldset.row legend{float:left;padding:0}
   <div id="chkEnd" class="res-btns" hidden>
     <p id="chkSum" class="res-title"></p>
     <button id="chkCopy" class="btn primary">Copy</button>
+  </div>
+</section>
+
+<!-- בדיקה באוזן של 41 הצורות שהמחשב מבלבל, נפתחת רק ב-#check41 -->
+<section id="c41Scr" class="screen" hidden>
+  <p id="c41Num" class="hint"></p>
+  <div id="c41Run" class="col">
+    <p class="small">Play</p>
+    <div id="c41Name"></div>
+    <p id="c41Sim" class="small"></p>
+    <div class="col stage"><div id="c41Neck" class="neck" role="img"></div></div>
+    <div id="c41Minis"></div>
+    <div class="res-btns">
+      <button id="c41Same" class="btn primary">Same</button>
+      <button id="c41Diff" class="btn primary">Different</button>
+    </div>
+    <div class="res-btns">
+      <button id="c41Back" class="btn ghost">Back</button>
+      <button id="c41Skip" class="btn ghost">Skip</button>
+    </div>
+  </div>
+  <div id="c41End" class="res-btns" hidden>
+    <p id="c41Sum" class="res-title"></p>
+    <button id="c41Copy" class="btn primary">Copy</button>
+    <button id="c41Again" class="btn ghost">Go over again</button>
   </div>
 </section>
 
@@ -705,6 +736,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
     if (!d || typeof d !== 'object') { d = {}; try { var old = JSON.parse(localStorage.getItem('chord-check-v1')); if (old && old.set) d.set = old.set; } catch (e) {} }
     if (!d.best || typeof d.best !== 'object' || Array.isArray(d.best)) d.best = {};
     if (!d.stars || typeof d.stars !== 'object' || Array.isArray(d.stars)) d.stars = {};
+    if (!d.c41 || typeof d.c41 !== 'object' || Array.isArray(d.c41)) d.c41 = {};
     if (!d.check || typeof d.check !== 'object' || Array.isArray(d.check)) d.check = {};
     d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true, allOpen: false }, d.set || {});
     if (!E.LEVELS[d.set.level]) d.set.level = 'normal';
@@ -724,7 +756,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -736,7 +768,7 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
     var frets = E.CHORDS[name], fretted = frets.filter(function (f) { return f > 0; });
     var top = Math.max.apply(null, [0].concat(fretted));
     var base = top > 4 ? Math.min.apply(null, fretted) : 1;
-    var keep = el.classList.contains('demo') ? ' demo' : '';
+    var keep = el.classList.contains('demo') ? ' demo' : el.classList.contains('mini') ? ' mini' : '';
     el.className = 'neck' + keep + (lefty ? ' lefty' : '');
     var X = function (i) { return ((lefty ? 5 - i : i) + 0.5) / 6; };
     // ברה: אותו שריג נמוך בשני מיתרים רחוקים, וביניהם רק מיתרים לחוצים, לפחות אחד מהם גבוה יותר
@@ -1098,7 +1130,44 @@ Object.assign(Engine.CHORDS, BOOK_SHAPES);
   $('#chkCopy').addEventListener('click', function () {
     navigator.clipboard.writeText(JSON.stringify(data.check)).then(function () { toast('Copied'); }, function () { toast("Can't copy"); });
   });
-  window.addEventListener('hashchange', function () { if (location.hash === '#check') location.reload(); }); // כתובת שנפתחה בטאב שכבר פתוח
+
+  // ---- #check41: ניב מנגן כל צורה ואת הצורות שהמחשב מבלבל איתה, ומחליט באוזן (בלי מיקרופון) ----
+  // מקור: tools/out/shape-status.json, השדה problems
+  var C41 = {"Amaj7@b":["C#m7+5@b"],"Bm6@b":["E7@b"],"Bmaj7@b":["G#m7@b"],"B7@b":["B7+5@b"],"Bm@b":["Esus2@b"],"Cmaj7@b":["Em7+5@b"],"Cm7@b":["G#maj7@b","Am7-5@b"],"C#sus4@b":["G#sus4@b"],"C#maj7@b":["Bbm7@b"],"C#m7@b":["Amaj7@b","Bbm7-5@b"],"Dmaj7@b":["Bm7@b","F#m7+5@b"],"Dm7@b":["Bbmaj7@b"],"Fm6@b":["Bb7@b"],"F#m6@b":["Adim7@b"],"F#sus2@b":["F#sus4@b","F#m@b","F#@b"],"G#sus2@b":["G#m@b","G#@b"],"A6@b":["F#m7-5@b"],"Bbm7+5@b":["F#7@b"],"Bb7+5@b":["F#7+5@b"],"Bb7-5@b":["Em7-5@b"],"Bb6@b":["Em7-5@b"],"B6@b":["Bm6@b","G#m7+5@b"],"C7-5@b":["F#m7-5@b"],"C#7+5@b":["B7-5@b","F7-5@b"],"C#+@b":["F-5@b"],"Dm7+5@b":["Bbmaj7@b"],"Dm7-5@b":["Bb7@b"],"D6@b":["Bm7+5@b","Bm7-5@b"],"D-5@b":["G#dim@b"],"Ebm7-5@b":["Adim7@b"],"Eb6@b":["Cm7-5@b"],"E7-5@b":["Em7-5@b"],"F7+5@b":["B7-5@b","F7-5@b"],"F+@b":["F-5@b"],"F#7+5@b":["F#m7+5@b"],"F#7-5@b":["Cm7-5@b","F#m7-5@b"],"F#-5@b":["F#dim@b"],"G#m7+5@b":["E6@b"],"G#7+5@b":["Am6@b","G#m7+5@b"],"G#7-5@b":["G#m7-5@b"],"G#6@b":["Cm7+5@b"]};
+  var c41List = Object.keys(C41), c41i = 0;
+  function c41Line(id) { return E.nameOf(id) + ' (similar: ' + C41[id].map(E.nameOf).join(', ') + ')'; }
+  function c41Show(i) {
+    c41i = Math.max(0, i);
+    var done = c41List.filter(function (id) { return data.c41[id]; }).length;
+    $('#c41Num').textContent = c41i < c41List.length ? (c41i + 1) + ' / ' + c41List.length : done + ' / ' + c41List.length + ' answered';
+    $('#c41Run').hidden = c41i >= c41List.length; $('#c41End').hidden = c41i < c41List.length;
+    if (c41i >= c41List.length) {
+      var n = { same: 0, different: 0, skip: 0 };
+      c41List.forEach(function (id) { if (data.c41[id]) n[data.c41[id]]++; });
+      $('#c41Sum').textContent = n.same + ' same, ' + n.different + ' different, ' + n.skip + ' skipped';
+      return;
+    }
+    var id = c41List[c41i], was = data.c41[id];
+    $('#c41Name').innerHTML = chordLabel(id);
+    $('#c41Sim').textContent = '(similar: ' + C41[id].map(E.nameOf).join(', ') + ')' + (was ? '  · your answer: ' + was : '');
+    buildNeck($('#c41Neck'), id, data.set.lefty);
+    $('#c41Minis').innerHTML = C41[id].map(function (s, k) { return '<figure><figcaption>' + E.nameOf(s) + '</figcaption><div class="neck mini" id="c41m' + k + '" role="img"></div></figure>'; }).join('');
+    C41[id].forEach(function (s, k) { buildNeck($('#c41m' + k), s, data.set.lefty); });
+  }
+  function c41Answer(a) { if (c41i < c41List.length) { data.c41[c41List[c41i]] = a; save(); c41Show(c41i + 1); } }
+  $('#c41Same').addEventListener('click', function () { c41Answer('same'); });
+  $('#c41Diff').addEventListener('click', function () { c41Answer('different'); });
+  $('#c41Skip').addEventListener('click', function () { c41Answer('skip'); });
+  $('#c41Back').addEventListener('click', function () { c41Show(c41i - 1); });
+  $('#c41Again').addEventListener('click', function () { c41Show(0); });
+  $('#c41Copy').addEventListener('click', function () {
+    var txt = c41List.map(function (id) { return c41Line(id) + ': ' + (data.c41[id] || 'no answer'); }).join('\n');
+    navigator.clipboard.writeText(txt).then(function () { toast('Copied'); }, function () { toast("Can't copy"); });
+  });
+  function c41Open() { show('c41Scr'); var f = c41List.findIndex(function (id) { return !data.c41[id]; }); c41Show(f < 0 ? c41List.length : f); }
+
+  window.addEventListener('hashchange', function () { if (location.hash === '#check' || location.hash === '#check41') location.reload(); }); // כתובת שנפתחה בטאב שכבר פתוח
+  if (location.hash === '#check41') c41Open();
   if (location.hash === '#check') { var f = chkFirst(); show('checkScr'); chkView('start'); C = {}; chkShow(Math.min(f, checkList.length - 1)); C.state = 'idle'; }
 })();
 </script>
