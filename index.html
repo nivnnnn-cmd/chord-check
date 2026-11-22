@@ -405,6 +405,18 @@ fieldset.row legend{float:left;padding:0}
   </div>
 </div>
 
+<!-- דף כניסה אחד לשתי הבדיקות, נפתח ב-#tests -->
+<section id="testsScr" class="screen" hidden>
+  <p class="res-title">Which check?</p>
+  <div class="res-btns">
+    <button id="tGuitar" class="btn primary">Guitar check</button>
+    <p id="tGuitarN" class="hint"></p>
+    <button id="tEar" class="btn primary">Ear check (41 shapes)</button>
+    <p id="tEarN" class="hint"></p>
+  </div>
+  <p class="hint">Every answer is saved right away. You can stop any time.</p>
+</section>
+
 <!-- בדיקת צורות עם גיטרה אמיתית, נפתחת רק ב-#check -->
 <section id="checkScr" class="screen" hidden>
   <div id="chkName"></div>
@@ -419,6 +431,7 @@ fieldset.row legend{float:left;padding:0}
     <p id="chkSum" class="res-title"></p>
     <button id="chkCopy" class="btn primary">Copy</button>
   </div>
+  <div class="res-btns"><button id="chkExit" class="btn ghost">Save and exit</button></div>
 </section>
 
 <!-- בדיקה באוזן של 41 הצורות שהמחשב מבלבל, נפתחת רק ב-#check41 -->
@@ -444,6 +457,7 @@ fieldset.row legend{float:left;padding:0}
     <button id="c41Copy" class="btn primary">Copy</button>
     <button id="c41Again" class="btn ghost">Go over again</button>
   </div>
+  <div class="res-btns"><button id="c41Exit" class="btn ghost">Save and exit</button></div>
 </section>
 
 <!-- שירים: הוספת הספר וחיפוש -->
@@ -949,7 +963,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'songs', 'song', 'changes', 'sheet'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -1538,9 +1552,25 @@ var Songs = (function () {
   });
   function c41Open() { show('c41Scr'); var f = c41List.findIndex(function (id) { return !data.c41[id]; }); c41Show(f < 0 ? c41List.length : f); }
 
-  window.addEventListener('hashchange', function () { if (location.hash === '#check' || location.hash === '#check41') location.reload(); }); // כתובת שנפתחה בטאב שכבר פתוח
+  // ---- #tests: דף כניסה אחד לשתי הבדיקות ----
+  function chkOpen() { var f = chkFirst(); show('checkScr'); chkView('start'); C = {}; chkShow(Math.min(f, checkList.length - 1)); C.state = 'idle'; }
+  function testsOpen() {
+    var g = checkList.filter(function (id) { return data.check[id]; }).length, e = c41List.filter(function (id) { return data.c41[id]; }).length;
+    $('#tGuitarN').textContent = g + ' / ' + checkList.length + ' done'; $('#tEarN').textContent = e + ' / ' + c41List.length + ' done';
+    show('testsScr');
+  }
+  // התשובות כבר נשמרו אחרי כל צורה, הכפתור רק עוצר ומחזיר לדף הכניסה
+  function testsExit() { stopLoop(); releaseWake(); C = null; save(); toast('Saved'); if (fromTests) testsOpen(); else show('home'); }
+  var fromTests = location.hash === '#tests';
+  $('#tGuitar').addEventListener('click', chkOpen);
+  $('#tEar').addEventListener('click', c41Open);
+  $('#chkExit').addEventListener('click', testsExit);
+  $('#c41Exit').addEventListener('click', testsExit);
+
+  window.addEventListener('hashchange', function () { if (location.hash === '#check' || location.hash === '#check41' || location.hash === '#tests') location.reload(); }); // כתובת שנפתחה בטאב שכבר פתוח
   if (location.hash === '#check41') c41Open();
-  if (location.hash === '#check') { var f = chkFirst(); show('checkScr'); chkView('start'); C = {}; chkShow(Math.min(f, checkList.length - 1)); C.state = 'idle'; }
+  if (location.hash === '#check') chkOpen();
+  if (fromTests) testsOpen();
 })();
 </script>
 </body>
