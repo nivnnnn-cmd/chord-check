@@ -609,7 +609,9 @@ var Engine = (function () {
       function evidence(F) {
         var p = peak(F);
         if (p.k < 0) return 0;
-        return sstep(L.snrLo, L.snrHi, p.v - floorAt(p.k)) * sstep(L.relLo, L.relHi, p.v - fmax);
+        // מיתר E נמוך פתוח (82 הרץ): המיקרופון של הטלפון כמעט לא קולט אותו, ולכן מקבלים אותו גם כשהוא חלש יותר ביחס לשאר האקורד
+        var lo = F < 85 ? 10 : 0;
+        return sstep(L.snrLo, L.snrHi, p.v - floorAt(p.k)) * sstep(L.relLo - lo, L.relHi - lo, p.v - fmax);
       }
       var scores = info.notes.map(function (f, s) {
         if (f == null) return 0;
