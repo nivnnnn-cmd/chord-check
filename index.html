@@ -314,6 +314,8 @@ fieldset.row legend{float:left;padding:0}
 .ch-pair{font:700 18px/1.2 var(--display)}
 .ch-sec{font-variant-numeric:tabular-nums}
 .ch-dots{color:var(--brass);letter-spacing:2px}
+#pickScr .ch-list{margin-bottom:8px}
+.pick-h{margin-top:22px}
 .ch-list .btn{width:auto;min-height:44px;padding:0 14px;font-size:16px}
 
 @media (prefers-reduced-motion:reduce){
@@ -522,6 +524,17 @@ fieldset.row legend{float:left;padding:0}
       <button id="btnC" class="btn ghost">C · Play the song</button>
       <button id="btnLearn" class="btn ghost">Add to Learning</button>
     </div>
+  </div>
+</section>
+
+<!-- שלב ב: בוחרים מעבר לתרגול -->
+<section id="pickScr" class="screen" hidden>
+  <div class="col">
+    <div class="topbar"><h2>Pick a change</h2><button id="pickBack" class="btn ghost songs-btn">Back</button></div>
+    <p id="pickSlowT" class="small">Your 5 slowest changes</p>
+    <ul id="pickSlow" class="ch-list"></ul>
+    <p id="pickNewT" class="small pick-h">Not played yet</p>
+    <ul id="pickNew" class="ch-list"></ul>
   </div>
 </section>
 
@@ -1002,7 +1015,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList', 'pickScr'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -1282,7 +1295,7 @@ var Songs = (function () {
   $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
   $('#quitBtn').addEventListener('click', function () {
     hideOverlays(); stopLoop(); releaseWake();
-    if (R && R.kind === 'sheet' && songFrom === 'known') openMy('known'); else if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
+    if (R && R.kind === 'sheet' && songFrom === 'known') openMy('known'); else if (R && R.kind === 'pair') openPick(); else if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
     R = null;
   });
   document.addEventListener('visibilitychange', function () {
@@ -1485,6 +1498,30 @@ var Songs = (function () {
   $('#myBack').addEventListener('click', function () { renderLevels(); show('levels'); });
   $('#shBack').addEventListener('click', function () { if (songFrom === 'known') openMy('known'); else { markLearn(); show('song'); } });
 
+  // שורה של מעבר: השם, הזמן הממוצע, כמה פעמים נמדד, וכפתור לתרגול בשלב ב
+  function chRow(s, r) {
+    var li = document.createElement('li'), k = Math.min(r.n, Songs.QUOTA);
+    li.innerHTML = '<span class="ch-pair"></span><span class="ch-sec"></span><span class="ch-dots"></span><button class="btn ghost">Practice</button>';
+    li.children[0].textContent = s.names[r.from] + ' → ' + s.names[r.to];
+    li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
+    li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
+    li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
+    li.children[3].addEventListener('click', function () { startPair([r.from, r.to]); });
+    return li;
+  }
+  // שלב ב: 5 המעברים האיטיים מבין אלה שנמדדו, ומתחתם כל מה שעוד לא נוגן
+  function openPick() {
+    var st = Songs.stats(data.changes, Songs.transitions(curSong.sequence));
+    var slow = st.filter(function (r) { return r.avg != null; }).slice(0, 5), fresh = st.filter(function (r) { return r.avg == null; });
+    $('#pickSlow').innerHTML = ''; $('#pickNew').innerHTML = '';
+    slow.forEach(function (r) { $('#pickSlow').appendChild(chRow(curSong, r)); });
+    fresh.forEach(function (r) { $('#pickNew').appendChild(chRow(curSong, r)); });
+    $('#pickSlowT').hidden = !slow.length; $('#pickNewT').hidden = !fresh.length;
+    $('#pickNewT').classList.toggle('pick-h', !!slow.length);
+    show('pickScr');
+  }
+  $('#pickBack').addEventListener('click', function () { show('song'); });
+
   // ---- מסך המעברים, בסוף סבב של שיר ----
   function showChanges() {
     var s = R.song, n = R.score, pair = R.kind === 'pair', ul = $('#chList'), best;
@@ -1496,29 +1533,16 @@ var Songs = (function () {
     bigStars($('#chStars'), E.starsFor(n)); // לתצוגה בלבד, לא נשמר
     $('#chNum').textContent = pair ? s.names[R.pair[0]] + ' ⇄ ' + s.names[R.pair[1]] + ': ' + n + ' switches · Best ' + best : 'Chords played ' + n + ' · Best ' + best;
     ul.innerHTML = '';
-    Songs.stats(data.changes, R.trans).forEach(function (r) {
-      var li = document.createElement('li'), k = Math.min(r.n, Songs.QUOTA);
-      li.innerHTML = '<span class="ch-pair"></span><span class="ch-sec"></span><span class="ch-dots"></span><button class="btn ghost">Practice</button>';
-      li.children[0].textContent = s.names[r.from] + ' → ' + s.names[r.to];
-      li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
-      li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
-      li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
-      li.children[3].addEventListener('click', function () { startPair([r.from, r.to]); });
-      ul.appendChild(li);
-    });
+    Songs.stats(data.changes, R.trans).forEach(function (r) { ul.appendChild(chRow(s, r)); });
     $('#chDone').hidden = !Songs.quotaMet(data.changes, R.trans);
     show('changes');
   }
   $('#btnA').addEventListener('click', function () { begin('song'); });
-  // שלב ב: שני אקורדים שנבחרו, או המעבר האיטי ביותר לפי המדידות
+  // שלב ב: המעבר שנבחר ברשימה
   function startPair(p) { curPair = p; begin('pair'); }
-  $('#btnB').addEventListener('click', function () {
-    // המעבר הכי איטי לפי שלב א. אם עוד לא נמדד, המעבר הראשון בשיר
-    var tr = Songs.transitions(curSong.sequence), slow = Songs.stats(data.changes, tr)[0];
-    if (slow && slow.avg != null) startPair([slow.from, slow.to]); else if (tr.length) startPair([tr[0].from, tr[0].to]);
-  });
+  $('#btnB').addEventListener('click', openPick);
   $('#chAgain').addEventListener('click', function () { begin(R.g); });
-  $('#chBack').addEventListener('click', function () { show('song'); });
+  $('#chBack').addEventListener('click', function () { if (R && R.kind === 'pair') openPick(); else show('song'); });
   $('#songsBtn').addEventListener('click', openSongs);
   $('#songsBack').addEventListener('click', function () { renderLevels(); show('levels'); });
   $('#songBack').addEventListener('click', function () { if (songFrom === 'learning') openMy('learning'); else show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
