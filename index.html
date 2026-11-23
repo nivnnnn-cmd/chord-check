@@ -146,6 +146,23 @@ p{margin:0}
 
 /* ---------- שירים ---------- */
 .song-q{width:100%;min-height:52px;margin:12px 0;padding:0 14px;border-radius:14px;border:1.5px solid var(--line);background:rgba(243,233,214,.07);color:var(--bone);font:inherit;font-size:18px;-webkit-user-select:text;user-select:text}
+/* כיוון */
+#tuneScr .col{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin:auto}
+.tune-note{font:800 96px/1 var(--display);color:var(--bone);transition:color .15s}
+.tune-note.idle{color:var(--dim)}
+.tune-note.ok{color:var(--lit)}
+.tune-meter{position:relative;width:min(84vw,340px);height:44px;border-radius:22px;background:var(--wood);border:1px solid var(--line)}
+.tune-mid{position:absolute;left:50%;top:6px;bottom:6px;width:2px;margin-left:-1px;background:var(--line)}
+.tune-needle{position:absolute;left:50%;top:5px;width:10px;height:32px;margin-left:-5px;border-radius:5px;background:var(--brass);transition:transform .12s ease-out,background .15s,opacity .2s;opacity:0}
+.tune-needle.on{opacity:1}
+.tune-needle.ok{background:var(--lit)}
+.tune-hint{margin:0;min-height:1.3em;font-weight:700;color:var(--muted)}
+.tune-strings{display:flex;gap:8px}
+.tune-strings span{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);font:700 17px/1 var(--display);color:var(--muted);transition:all .2s}
+.tune-strings span.now{border-color:var(--bone);color:var(--bone)}
+.tune-strings span.ok{background:var(--lit);border-color:var(--lit);color:var(--bg)}
+#tuneDone{max-width:340px;margin-top:10px}
+@media (prefers-reduced-motion:reduce){.tune-needle,.tune-strings span,.tune-note{transition:none}}
 .my-btns{display:flex;gap:10px;margin:0 0 14px}
 .my-btns .btn{flex:1;min-height:48px}
 .song-res{list-style:none;margin:0;padding:0}
@@ -343,6 +360,19 @@ fieldset.row legend{float:left;padding:0}
     <p class="small">The app uses your mic to hear your guitar.</p>
     <button id="startBtn" class="btn primary">Start</button>
     <p id="micError" class="err" role="alert" hidden></p>
+  </div>
+</section>
+
+<!-- כיוון: מופיע אחרי Start, פעם אחת בכל כניסה לאפליקציה -->
+<section id="tuneScr" class="screen" hidden>
+  <div class="col tune">
+    <h2>Tune your guitar</h2>
+    <p class="small">Play one string at a time.</p>
+    <div id="tuneNote" class="tune-note idle" aria-live="polite">E</div>
+    <div class="tune-meter" aria-hidden="true"><span class="tune-mid"></span><span id="tuneNeedle" class="tune-needle"></span></div>
+    <p id="tuneHint" class="tune-hint">&nbsp;</p>
+    <div id="tuneStrings" class="tune-strings"></div>
+    <button id="tuneDone" class="btn ghost">Skip</button>
   </div>
 </section>
 
@@ -887,6 +917,35 @@ var BOOK_SHAPES = {
 };
 Object.assign(Engine.CHORDS, BOOK_SHAPES);
 </script>
+<script id="tuner">
+// כיוון: מזהה את הצליל של מיתר אחד, ואיזה מיתר פתוח הכי קרוב אליו
+var Tuner = (function () {
+  var OPEN = [40, 45, 50, 55, 59, 64], NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
+  // שיטת YIN: מחפשים אחרי כמה דגימות הגל חוזר על עצמו. עובד גם כשהצליל הבסיסי חלש, כמו מיתר נמוך במיקרופון של טלפון
+  function pitch(buf, sr) {
+    var W = Math.round(sr * 0.045), minLag = Math.floor(sr / 1000), maxLag = Math.ceil(sr / 70), start = buf.length - W - maxLag;
+    if (start < 0) return null;
+    var ms = 0; for (var i = 0; i < W; i++) ms += buf[start + i] * buf[start + i];
+    if (Math.sqrt(ms / W) < 0.003) return null; // שקט
+    var d = new Float32Array(maxLag + 1), sum = 0, best = -1;
+    for (var t = 1; t <= maxLag; t++) {
+      var v = 0; for (var j = 0; j < W; j++) { var x = buf[start + j] - buf[start + j + t]; v += x * x; }
+      sum += v; d[t] = v * t / (sum || 1);
+      if (best < 0 && t > minLag + 1 && d[t - 1] < 0.15 && d[t - 1] <= d[t] && d[t - 1] <= d[t - 2]) best = t - 1;
+    }
+    if (best < 0) return null;
+    var a = d[best - 1], b = d[best], c = d[best + 1], den = a - 2 * b + c;
+    return sr / (best + (den ? (a - c) / (2 * den) : 0));
+  }
+  // המיתר הקרוב, וכמה סנטים (מאית של חצי טון) הצליל גבוה (+) או נמוך (-) ממנו
+  function nearest(hz) {
+    var m = 69 + 12 * Math.log2(hz / 440), k = 0;
+    for (var i = 1; i < 6; i++) if (Math.abs(m - OPEN[i]) < Math.abs(m - OPEN[k])) k = i;
+    return { string: k, name: NAMES[k], cents: (m - OPEN[k]) * 100 };
+  }
+  return { OPEN: OPEN, NAMES: NAMES, pitch: pitch, nearest: nearest };
+})();
+</script>
 <script id="songs">
 // שירים: מנעול בלבד (בלי ממשק). המפתח נגזר מקובץ הספר עצמו
 var Songs = (function () {
@@ -1015,7 +1074,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList', 'pickScr'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList', 'pickScr', 'tuneScr'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -1131,6 +1190,7 @@ var Songs = (function () {
     else if (mode === 'play') playTick(now, dt);
     else if (mode === 'check') checkTick(now);
     else if (mode === 'sheet') sheetTick(now);
+    else if (mode === 'tuneScr') tuneTick(now);
   }
 
   // ---- מסך השלבים ----
@@ -1581,12 +1641,46 @@ var Songs = (function () {
   // ---- מסך פתיחה ----
   $('#startBtn').addEventListener('click', function () {
     var b = $('#startBtn'); b.disabled = true;
-    initAudio().then(function () { $('#micError').hidden = true; renderLevels(); show('levels'); })
+    initAudio().then(function () { $('#micError').hidden = true; if (tuned) { renderLevels(); show('levels'); } else tuneOpen(); })
       .catch(function (err) { showMicError(micErrorText(err)); })
       .then(function () { b.disabled = false; });
   });
   buildNeck($('#demoNeck'), 'C', data.set.lefty);
   renderLevels();
+
+  // ---- כיוון ----
+  // מיתר נחשב מכוון אחרי שישב חצי שנייה בטווח של 5 סנט. כשכל השישה מכוונים, ממשיכים לבד
+  var tuned = false, TU = null;
+  function tuneOpen() {
+    TU = { ok: [0, 0, 0, 0, 0, 0], hist: [], last: 0, inSince: 0, heard: 0, doneAt: 0 };
+    $('#tuneStrings').innerHTML = Tuner.NAMES.map(function (n) { return '<span>' + n + '</span>'; }).join('');
+    $('#tuneNote').className = 'tune-note idle'; $('#tuneNeedle').className = 'tune-needle'; $('#tuneHint').innerHTML = '&nbsp;';
+    var d = $('#tuneDone'); d.textContent = 'Skip'; d.className = 'btn ghost';
+    show('tuneScr'); requestWake(); startLoop();
+  }
+  function tuneClose() { tuned = true; TU = null; stopLoop(); releaseWake(); renderLevels(); show('levels'); }
+  $('#tuneDone').addEventListener('click', tuneClose);
+  function tuneTick(now) {
+    if (!TU || now - TU.last < 50) return;
+    TU.last = now;
+    if (TU.doneAt) { if (now > TU.doneAt) tuneClose(); return; }
+    var hz = Tuner.pitch(grab(), A.ctx.sampleRate), chips = $('#tuneStrings').children;
+    if (hz) { TU.hist.push(hz); if (TU.hist.length > 5) TU.hist.shift(); TU.heard = now; }
+    else if (now - TU.heard > 400) TU.hist = [];
+    if (!TU.hist.length) { $('#tuneNote').classList.add('idle'); $('#tuneNeedle').classList.remove('on'); $('#tuneHint').innerHTML = '&nbsp;'; TU.inSince = 0; return; }
+    var med = TU.hist.slice().sort(function (a, b) { return a - b; })[TU.hist.length >> 1], r = Tuner.nearest(med), inTune = Math.abs(r.cents) < 5;
+    $('#tuneNote').textContent = r.name; $('#tuneNote').className = 'tune-note' + (inTune ? ' ok' : '');
+    var nd = $('#tuneNeedle'); nd.className = 'tune-needle on' + (inTune ? ' ok' : '');
+    nd.style.transform = 'translateX(' + (Math.max(-50, Math.min(50, r.cents)) / 50 * (nd.parentNode.clientWidth / 2 - 14)) + 'px)';
+    $('#tuneHint').textContent = inTune ? 'In tune' : r.cents < 0 ? 'Too low · tighten' : 'Too high · loosen';
+    Array.prototype.forEach.call(chips, function (c, i) { c.classList.toggle('now', i === r.string); });
+    if (!inTune) { TU.inSince = 0; return; }
+    if (!TU.inSince) TU.inSince = now;
+    if (now - TU.inSince > 500 && !TU.ok[r.string]) {
+      TU.ok[r.string] = 1; chips[r.string].classList.add('ok'); chime([1568]);
+      if (TU.ok.every(Boolean)) { var d = $('#tuneDone'); d.textContent = 'Tuned ✓'; d.className = 'btn primary'; TU.doneAt = now + 1200; }
+    }
+  }
 
   // ---- בדיקת צורות הספר עם גיטרה אמיתית (#check) ----
   var CHECK_TYPES = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', '6', 'm6', 'dim', 'dim7', '5', '+', '7-5', 'm7-5', '7+5', 'm7+5', 'm9', '-5'];
@@ -1726,6 +1820,7 @@ var Songs = (function () {
     document.body.appendChild(fakeBtn);
     fakeBtn.addEventListener('click', function () {
       if (!A.an) return toast('Tap Start first');
+      if (mode === 'tuneScr' && TU) { var f = [-1, -1, -1, -1, -1, -1], k = TU.ok.indexOf(0); f[k < 0 ? 0 : k] = 0; return fakePlay(fakeRender(A.ctx.sampleRate, 3, f)); }
       var name = mode === 'check' && C ? checkList[C.i] : R && R.chord;
       if (!name || !E.CHORDS[name]) return toast('No chord to play');
       fakePlay(fakeRender(A.ctx.sampleRate, 3, E.CHORDS[name]));
