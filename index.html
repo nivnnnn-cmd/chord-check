@@ -227,6 +227,8 @@ p{margin:0}
 .combo i.on{background:var(--lit);box-shadow:0 0 12px rgba(63,220,124,.5)}
 .combo.burst i{background:var(--lit-hi);box-shadow:0 0 18px rgba(180,255,208,.8)}
 .sheet-top{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+/* רקע שמכסה גם מעל הפס ובצדדים, כדי שמילים ו-✓ שעוברים בגלילה לא יציצו מאחוריו */
+.sheet-top::before{content:"";position:absolute;inset:-60px -40px 0;background:var(--bg);z-index:-1}
 .sheet-top .iconbtn{background:rgba(243,233,214,.07);flex:none}
 #sheetName{font:800 44px/1 var(--display);flex:1;text-align:center}
 #sheetEnd{position:fixed;z-index:5;left:0;right:0;bottom:0;max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:10px;
