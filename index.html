@@ -248,7 +248,9 @@ p{margin:0}
 #sheetBody .lb{color:var(--muted)}
 #sheetBody .ch.now{background:var(--brass);color:var(--brass-ink)}
 #sheetBody .ch.done{color:var(--lit)}
-#sheetBody .ch.done::after{content:' ✓'}
+/* ה-✓ קטן בפינה העליונה של האקורד, ולא תופס מקום, כדי שלא ירחיב את המילים מתחת */
+#sheetBody .ch{position:relative}
+#sheetBody .ch.done::after{content:'✓';position:absolute;top:-.3em;right:-.35em;font-size:.7em;line-height:1}
 .hint{text-align:center;color:var(--muted);font-size:17px;padding-bottom:4px}
 .bonus{position:fixed;font:800 26px/1 var(--display);color:var(--lit-hi);pointer-events:none;z-index:30;text-shadow:0 2px 12px rgba(63,220,124,.6)}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:20;overflow:hidden}
