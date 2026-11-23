@@ -135,9 +135,10 @@ p{margin:0}
 .mini{--h:120px;--nw:16px;width:130px;grid-template-rows:24px var(--h)}
 #c41Run{align-items:center;text-align:center}
 #c41Neck{--h:210px;width:min(62vw,250px)}
-#c41Minis{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:14px}
-#c41Minis figure{margin:0;text-align:center}
-#c41Minis figcaption{font-weight:700;margin-bottom:4px}
+#c41Minis,#libRes{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:14px}
+#c41Minis figure,#libRes figure{margin:0;text-align:center}
+#c41Minis figcaption,#libRes figcaption{font-weight:700;margin-bottom:4px}
+#libRes .chips{justify-content:center;margin:0}
 .demo{--h:min(34vh, 250px);width:min(58vw, 230px);margin-top:6px}
 .demo .fill{animation:demo 3.6s ease-in-out infinite;animation-delay:calc(var(--i)*.16s)}
 @keyframes demo{0%,8%{transform:scaleY(0)}40%,78%{transform:scaleY(1)}100%{transform:scaleY(0)}}
@@ -157,17 +158,32 @@ p{margin:0}
 .tune-needle.on{opacity:1}
 .tune-needle.ok{background:var(--lit)}
 .tune-hint{margin:0;min-height:1.3em;font-weight:700;color:var(--muted)}
-.tune-strings{display:flex;gap:8px}
+.tune-strings{display:grid;grid-template-columns:56px 92px 56px;grid-template-rows:repeat(3,54px);align-items:center;margin:4px 0 8px}
+/* ראש הגיטרה: 3 כפתורי כיוון מכל צד, כמו בגיטרה אמיתית. המיתר העבה למטה משמאל, הדק למטה מימין */
+.tune-strings::before{content:"";grid-column:2;grid-row:1/4;align-self:stretch;border-radius:30px 30px 4px 4px;border:1px solid var(--line);
+  background:repeating-linear-gradient(90deg,transparent 0 12px,rgba(243,233,214,.28) 12px 13px) 7px 0/78px 100% no-repeat,var(--wood)}
+.tune-strings::after{content:"";grid-column:2;grid-row:3;align-self:end;height:7px;margin-bottom:-7px;border-radius:2px;background:var(--bone)}
+.tune-strings span{position:relative}
+.tune-strings span::after{content:"";position:absolute;top:50%;width:14px;height:6px;margin-top:-3px;background:var(--line)}
+.tune-strings span:nth-child(-n+3)::after{right:-15px}
+.tune-strings span:nth-child(n+4)::after{left:-15px}
+.tune-strings span:nth-child(1){grid-area:3/1}.tune-strings span:nth-child(2){grid-area:2/1}.tune-strings span:nth-child(3){grid-area:1/1}
+.tune-strings span:nth-child(4){grid-area:1/3}.tune-strings span:nth-child(5){grid-area:2/3}.tune-strings span:nth-child(6){grid-area:3/3}
+.tune-strings span:nth-child(-n+3){justify-self:start}.tune-strings span:nth-child(n+4){justify-self:end}
+.tune-strings span.now{animation:pegpulse 1s ease-in-out infinite}
+@keyframes pegpulse{50%{box-shadow:0 0 0 6px rgba(243,233,214,.15)}}
 .tune-strings span{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);font:700 17px/1 var(--display);color:var(--muted);transition:all .2s}
 .tune-strings span.now{border-color:var(--bone);color:var(--bone)}
 .tune-strings span.ok{background:var(--lit);border-color:var(--lit);color:var(--bg)}
 #tuneDone{max-width:340px;margin-top:10px}
-@media (prefers-reduced-motion:reduce){.tune-needle,.tune-strings span,.tune-note{transition:none}}
+@media (prefers-reduced-motion:reduce){.tune-needle,.tune-strings span,.tune-note{transition:none;animation:none}}
 .my-btns{display:flex;gap:10px;margin:0 0 14px}
-.my-btns .btn{flex:1;min-height:48px}
+.my-btns .btn{flex:1;min-height:48px;padding:0 6px;font-size:16px;white-space:nowrap}
 .song-res{list-style:none;margin:0;padding:0}
 .song-res li+li{border-top:1px solid var(--line)}
 .song-res button{width:100%;padding:14px 4px;text-align:right;font-size:18px}
+.song-res li.my{display:flex;align-items:center;gap:8px}
+.song-res li.my .rm{width:auto;min-height:40px;padding:0 12px;font-size:15px;text-align:center;flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
 .chip{min-width:52px;min-height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--line);font:700 17px/1 var(--display)}
 .chip.on{background:var(--bone);color:var(--bg)}
@@ -226,7 +242,7 @@ p{margin:0}
 .hud{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:52px}
 .hud .iconbtn{justify-self:start;background:rgba(243,233,214,.07)}
 #score{font:800 44px/1 var(--display);min-width:2ch;text-align:center}
-#score.pop{animation:pop .35s ease-out}
+#score.bump{animation:pop .35s ease-out}
 @keyframes pop{40%{transform:scale(1.3);color:var(--lit-hi)}}
 #timer{justify-self:end;font:700 24px/1 var(--body);font-variant-numeric:tabular-nums;padding:9px 12px;border-radius:12px;
   background:rgba(243,233,214,.07);min-width:76px;text-align:center}
@@ -330,7 +346,9 @@ fieldset.row legend{float:left;padding:0}
 .ch-list li+li{border-top:1px solid var(--line)}
 .ch-pair{font:700 18px/1.2 var(--display)}
 .ch-sec{font-variant-numeric:tabular-nums}
-.ch-dots{color:var(--brass);letter-spacing:2px}
+.ch-dots{color:var(--muted);font-size:13px;white-space:nowrap}
+.ch-sec.fast{color:var(--lit)}
+.ch-sec.slow{color:var(--brass)}
 #pickScr .ch-list{margin-bottom:8px}
 .pick-h{margin-top:22px}
 .ch-list .btn{width:auto;min-height:44px;padding:0 14px;font-size:16px}
@@ -369,6 +387,7 @@ fieldset.row legend{float:left;padding:0}
     <h2>Tune your guitar</h2>
     <p class="small">Play one string at a time.</p>
     <div id="tuneNote" class="tune-note idle" aria-live="polite">E</div>
+    <p id="tuneWhich" class="small">&nbsp;</p>
     <div class="tune-meter" aria-hidden="true"><span class="tune-mid"></span><span id="tuneNeedle" class="tune-needle"></span></div>
     <p id="tuneHint" class="tune-hint">&nbsp;</p>
     <div id="tuneStrings" class="tune-strings"></div>
@@ -384,7 +403,7 @@ fieldset.row legend{float:left;padding:0}
       <button id="songsBtn" class="btn ghost songs-btn">Songs</button>
       <button id="gearBtn" class="iconbtn" aria-label="Settings"><svg class="icon"><use href="#i-gear"/></svg></button>
     </div>
-    <div class="my-btns"><button id="knownBtn" class="btn ghost">Songs I know</button><button id="learnBtn" class="btn ghost">Learning</button></div>
+    <div class="my-btns"><button id="knownBtn" class="btn ghost">Songs I know</button><button id="learnBtn" class="btn ghost">Learning</button><button id="libBtn" class="btn ghost">Chords</button></div>
     <ul id="levelList"></ul>
     <p id="levelNote" class="lv-note"></p>
   </div>
@@ -410,7 +429,7 @@ fieldset.row legend{float:left;padding:0}
     <div id="neck" class="neck" role="img"></div>
     <div id="combo" class="combo" aria-hidden="true"><i></i><i></i><i></i></div>
   </div>
-  <p class="hint">Play this chord</p>
+  <p id="playHint" class="hint">Play this chord</p>
 </section>
 
 <!-- מסך תוצאות -->
@@ -444,7 +463,7 @@ fieldset.row legend{float:left;padding:0}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
     <h2 id="setTitle">Settings</h2>
     <fieldset class="row">
-      <legend>Check</legend>
+      <legend>Accuracy</legend>
       <div class="seg">
         <input type="radio" name="level" id="lvEasy" value="easy"><label for="lvEasy">Easy</label>
         <input type="radio" name="level" id="lvNormal" value="normal"><label for="lvNormal">Normal</label>
@@ -524,10 +543,20 @@ fieldset.row legend{float:left;padding:0}
       <input type="file" id="bookFile" accept="application/pdf" hidden>
     </div>
     <div id="songFind" hidden>
-      <input id="songQuery" class="song-q" type="search" dir="rtl" autocomplete="off" aria-label="Search songs">
+      <input id="songQuery" class="song-q" type="search" dir="rtl" autocomplete="off" aria-label="Search songs" placeholder="Song or artist">
       <ul id="songResults" class="song-res"></ul>
     </div>
     <p id="songMsg" class="err" role="alert" hidden></p>
+  </div>
+</section>
+
+<!-- ספריית אקורדים: כותבים שם ורואים את כל הצורות שלו -->
+<section id="lib" class="screen" hidden>
+  <div class="col">
+    <div class="topbar"><h2>Chords</h2><button id="libBack" class="btn ghost songs-btn">Back</button></div>
+    <input id="libQuery" class="song-q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Chord name, like Am7" aria-label="Search chords">
+    <p id="libMsg" class="small"></p>
+    <div id="libRes"></div>
   </div>
 </section>
 
@@ -917,6 +946,78 @@ var BOOK_SHAPES = {
 };
 Object.assign(Engine.CHORDS, BOOK_SHAPES);
 </script>
+<script id="slash-shapes">
+// אקורדים עם בס: הציור של האקורד מהספר, עם צליל הבס על המיתר הנמוך. נבנה ב-tools/book/slash.py. מזהה: שם+@s
+var SLASH_SHAPES = {
+  'A/G#@s': [4, 0, 2, 2, 2, 0], 'A/B@s': [-1, 2, 2, 2, 2, 0], 'A/Bb@s': [-1, 1, 2, 2, 2, 0], 'A/C@s': [-1, 3, 2, 2, 2, 0],
+  'A/C#@s': [-1, 4, 2, 2, 2, 0], 'A/D@s': [-1, -1, 0, 2, 2, 0], 'A/E@s': [0, 0, 2, 2, 2, 0], 'A/F#@s': [2, 0, 2, 2, 2, 0],
+  'A/G@s': [3, 0, 2, 2, 2, 0], 'Asus4/C@s': [-1, 3, 2, 2, 3, 0], 'A5/C@s': [-1, 3, 2, 2, -1, -1], 'A5/G@s': [3, 0, 2, 2, -1, -1],
+  'A6/B@s': [-1, 2, 2, 2, 2, 2], 'A7/E@s': [0, 0, 2, 0, 2, 0], 'A7/F#@s': [2, 0, 2, 0, 2, 0], 'A7/G@s': [3, 0, 2, 0, 2, 0],
+  'Amaj7/F#@s': [2, 0, 2, 1, 2, 0], 'G#/A@s': [5, 6, 6, 5, 4, 4], 'G#/C@s': [-1, 3, 6, 5, 4, 4], 'G#/C#@s': [-1, 4, 6, 5, 4, 4],
+  'G#/Eb@s': [-1, 6, 6, 5, 4, 4], 'G#/G@s': [3, 6, 6, 5, 4, 4], 'G#/F#@s': [-1, -1, 4, 5, 4, 4], 'G#sus4/Bb@s': [6, 4, 6, 6, 4, 4],
+  'G#6/Bb@s': [-1, 1, 1, 1, 1, 1], 'G#7/C@s': [-1, 3, 4, 5, 4, 4], 'G#7/Eb@s': [-1, 6, 4, 5, 4, 4], 'G#7/F#@s': [-1, -1, 4, 5, 4, 4],
+  'G#m/Bb@s': [6, 6, 6, 4, 4, 4], 'G#m/Eb@s': [-1, 6, 6, 4, 4, 4], 'G#m/F#@s': [-1, -1, 4, 4, 4, 4], 'Adim7/Eb@s': [-1, -1, 1, 2, 1, 2],
+  'Am/G#@s': [4, 0, 2, 2, 1, 0], 'Am/B@s': [-1, 2, 2, 2, 1, 0], 'Am/Bb@s': [-1, 1, 2, 2, 1, 0], 'Am/C@s': [-1, 3, 2, 2, 1, 0],
+  'Am/C#@s': [-1, 4, 2, 2, 1, 0], 'Am/D@s': [-1, -1, 0, 2, 1, 0], 'Am/E@s': [0, 0, 2, 2, 1, 0], 'Am/F@s': [1, 0, 2, 2, 1, 0],
+  'Am/F#@s': [2, 0, 2, 2, 1, 0], 'Am/G@s': [3, 0, 2, 2, 1, 0], 'Am6/C@s': [-1, 3, 2, 2, 1, 2], 'Am6/F#@s': [2, 0, 2, 2, 1, 2],
+  'Am7/E@s': [0, 0, 2, 0, 1, 0], 'Am7/G@s': [3, 0, 2, 0, 1, 0], 'B/A@s': [-1, 0, 4, 4, 4, 2], 'B/Eb@s': [-1, -1, 1, 4, 4, 2],
+  'B/F@s': [1, 2, 4, 4, 4, 2], 'B/F#@s': [2, 2, 4, 4, 4, 2], 'B/G@s': [3, 2, 4, 4, 4, 2], 'B/G#@s': [4, 2, 4, 4, 4, 2],
+  'Bsus4/G#@s': [4, 2, 4, 4, 5, 2], 'Bsus4/F#@s': [2, 2, 4, 4, 5, 2], 'Bsus4/G@s': [3, 2, 4, 4, 5, 2], 'B6/C#@s': [-1, 4, 4, 4, 4, 4],
+  'B7/A@s': [-1, 0, 1, 2, 0, 2], 'B7/Bb@s': [-1, 1, 1, 2, 0, 2], 'B7/Eb@s': [-1, -1, 1, 2, 0, 2], 'B7/E@s': [0, 2, 1, 2, 0, 2],
+  'B7/F#@s': [2, 2, 1, 2, 0, 2], 'Bb/A@s': [-1, 0, 3, 3, 3, 1], 'Bb/G#@s': [4, 1, 3, 3, 3, 1], 'Bb/B@s': [-1, 2, 3, 3, 3, 1],
+  'Bb/C@s': [-1, 3, 3, 3, 3, 1], 'Bb/D@s': [-1, -1, 0, 3, 3, 1], 'Bb/E@s': [0, 1, 3, 3, 3, 1], 'Bb/F@s': [1, 1, 3, 3, 3, 1],
+  'Bb5/C@s': [-1, 3, 3, 3, -1, -1], 'Bb6/C@s': [-1, 3, 3, 3, 3, 3], 'Bb7/G#@s': [4, 1, 3, 1, 3, 1], 'Bbdim/C#@s': [-1, 4, 2, 3, 2, -1],
+  'Bbm/G#@s': [4, 1, 3, 3, 2, 1], 'Bbm/C@s': [-1, 3, 3, 3, 2, 1], 'Bbm/C#@s': [-1, 4, 3, 3, 2, 1], 'Bbm/F@s': [1, 1, 3, 3, 2, 1],
+  'Bbm6/C#@s': [-1, 4, 3, 3, 2, 3], 'Bbm7/G#@s': [4, 1, 3, 1, 2, 1], 'Bdim/C@s': [-1, 3, 3, 4, 3, -1], 'Bm/A@s': [-1, 0, 4, 4, 3, 2],
+  'Bm/G#@s': [4, 2, 4, 4, 3, 2], 'Bm/D@s': [-1, -1, 0, 4, 3, 2], 'Bm/E@s': [0, 2, 4, 4, 3, 2], 'Bm/F#@s': [2, 2, 4, 4, 3, 2],
+  'Bm7/E@s': [0, 2, 4, 2, 3, 2], 'Bdim7/A@s': [-1, 0, 0, 1, 0, 1], 'C#/G#@s': [4, 4, 6, 6, 6, 4], 'C#/C@s': [-1, 3, 6, 6, 6, 4],
+  'C#/F@s': [-1, -1, 3, 6, 6, 4], 'C#5/A@s': [5, 4, 6, 6, -1, -1], 'C#m/G#@s': [4, 4, 6, 6, 5, 4], 'C#m/C@s': [-1, 3, 6, 6, 5, 4],
+  'C#m/E@s': [0, 4, 6, 6, 5, 4], 'C+/A@s': [-1, 0, 2, 1, 1, 0], 'C7+5/E@s': [0, 1, 2, 1, 1, 0], 'C/A@s': [-1, 0, 2, 0, 1, 0],
+  'C/B@s': [-1, 2, 2, 0, 1, 0], 'C/Bb@s': [-1, 1, 2, 0, 1, 0], 'C/C#@s': [-1, 4, 2, 0, 1, 0], 'C/D@s': [-1, -1, 0, 0, 1, 0],
+  'C/E@s': [0, 3, 2, 0, 1, 0], 'C/F@s': [1, 3, 2, 0, 1, 0], 'C/G@s': [3, 3, 2, 0, 1, 0], 'Csus4/E@s': [0, 3, 3, 0, 1, 1],
+  'C5/G@s': [3, 3, 5, 5, -1, -1], 'C6/D@s': [-1, -1, 0, 2, 1, 0], 'C6/G@s': [3, 3, 2, 2, 1, 0], 'C7/Bb@s': [-1, 1, 2, 3, 1, 0],
+  'C7/E@s': [0, 3, 2, 3, 1, 0], 'C7/G@s': [3, 3, 2, 3, 1, 0], 'Cmaj7/G@s': [3, 3, 2, 0, 0, 0], 'Cm/A@s': [5, 3, 5, 5, 4, 3],
+  'Cm/D@s': [-1, 5, 5, 5, 4, 3], 'Cm/G@s': [3, 3, 5, 5, 4, 3], 'Cm7/G@s': [3, 3, 5, 3, 4, 3], 'Eb5/G@s': [3, -1, 1, 3, 4, -1],
+  'D/A@s': [-1, 0, 0, 2, 3, 2], 'D/C@s': [-1, 3, 0, 2, 3, 2], 'D/C#@s': [-1, 4, 0, 2, 3, 2], 'D/E@s': [0, -1, 0, 2, 3, 2],
+  'D/Eb@s': [-1, -1, 1, 2, 3, 2], 'D/F@s': [1, -1, 0, 2, 3, 2], 'D/F#@s': [2, -1, 0, 2, 3, 2], 'D/G@s': [3, -1, 0, 2, 3, 2],
+  'D/G#@s': [4, -1, 0, 2, 3, 2], 'Dsus2/C@s': [-1, 3, 0, 2, 3, 0], 'Dsus2/C#@s': [-1, 4, 0, 2, 3, 0], 'Dsus2/F#@s': [2, -1, 0, 2, 3, 0],
+  'Dsus4/A@s': [-1, 0, 0, 2, 3, 3], 'Dsus4/C@s': [-1, 3, 0, 2, 3, 3], 'Dsus4/G@s': [3, -1, 0, 2, 3, 3], 'D5/F#@s': [2, -1, 0, 2, 3, -1],
+  'D6/E@s': [0, -1, 0, 2, 0, 2], 'D6/F#@s': [2, -1, 0, 2, 0, 2], 'D7-5/G#@s': [4, -1, 0, 1, 1, 2], 'D7/A@s': [-1, 0, 0, 2, 1, 2],
+  'D7/G#@s': [4, -1, 0, 2, 1, 2], 'D7/F#@s': [2, -1, 0, 2, 1, 2], 'D7/G@s': [3, -1, 0, 2, 1, 2], 'C#/Eb@s': [-1, 6, 6, 6, 6, 4],
+  'C#6/F@s': [1, 4, 3, 3, 2, -1], 'C#7/B@s': [-1, 2, 3, 4, 2, 4], 'Dm/A@s': [-1, 0, 0, 2, 3, 1], 'Dm/Bb@s': [-1, 1, 0, 2, 3, 1],
+  'Dm/B@s': [-1, 2, 0, 2, 3, 1], 'Dm/C@s': [-1, 3, 0, 2, 3, 1], 'Dm/C#@s': [-1, 4, 0, 2, 3, 1], 'Dm/E@s': [0, -1, 0, 2, 3, 1],
+  'Dm/Eb@s': [-1, -1, 1, 2, 3, 1], 'Dm/F@s': [1, -1, 0, 2, 3, 1], 'Dm/G@s': [3, -1, 0, 2, 3, 1], 'Dm6/B@s': [-1, 2, 0, 2, 0, 1],
+  'Dm6/E@s': [0, -1, 0, 2, 0, 1], 'Dm6/F@s': [1, -1, 0, 2, 0, 1], 'Dm7/A@s': [-1, 0, 0, 2, 1, 1], 'Dm7/G@s': [3, -1, 0, 2, 1, 1],
+  'E/A@s': [-1, 0, 2, 1, 0, 0], 'E/G#@s': [4, 2, 2, 1, 0, 0], 'E/B@s': [-1, 2, 2, 1, 0, 0], 'E/Bb@s': [-1, 1, 2, 1, 0, 0],
+  'E/D@s': [-1, -1, 0, 1, 0, 0], 'E/Eb@s': [-1, -1, 1, 1, 0, 0], 'E/F#@s': [2, 2, 2, 1, 0, 0], 'Esus4/B@s': [-1, 2, 2, 2, 0, 0],
+  'Esus4/F#@s': [2, 2, 2, 2, 0, 0], 'E6/G@s': [3, 2, 2, 1, 2, 0], 'E7/A@s': [-1, 0, 0, 1, 0, 0], 'E7/G#@s': [4, 2, 0, 1, 0, 0],
+  'E7/B@s': [-1, 2, 0, 1, 0, 0], 'E7/Bb@s': [-1, 1, 0, 1, 0, 0], 'E7/D@s': [-1, -1, 0, 1, 0, 0], 'E/G@s': [3, 2, 2, 1, 0, 0],
+  'Eb/Bb@s': [6, 6, 8, 8, 8, 6], 'Eb/D@s': [-1, 5, 8, 8, 8, 6], 'Eb/F@s': [-1, 8, 8, 8, 8, 6], 'Eb/G@s': [-1, -1, 5, 8, 8, 6],
+  'Ebsus4/Bb@s': [-1, 1, 1, 3, 4, 4], 'Ebm/Bb@s': [6, 6, 8, 8, 7, 6], 'Edim/G@s': [3, 1, 2, 0, -1, 0], 'Em/A@s': [-1, 0, 2, 0, 0, 0],
+  'Em/B@s': [-1, 2, 2, 0, 0, 0], 'Em/C@s': [-1, 3, 2, 0, 0, 0], 'Em/C#@s': [-1, 4, 2, 0, 0, 0], 'Em/D@s': [-1, -1, 0, 0, 0, 0],
+  'Em/Eb@s': [-1, -1, 1, 0, 0, 0], 'Em/F#@s': [2, 2, 2, 0, 0, 0], 'Em/G@s': [3, 2, 2, 0, 0, 0], 'Em6/B@s': [-1, 2, 2, 0, 2, 0],
+  'Em7/A@s': [-1, 0, 0, 0, 0, 0], 'F#/Bb@s': [-1, 1, 4, 3, 2, 2], 'F#/G#@s': [4, 4, 4, 3, 2, 2], 'F#/C#@s': [-1, 4, 4, 3, 2, 2],
+  'F#/E@s': [0, 4, 4, 3, 2, 2], 'F#sus4/C#@s': [-1, 4, 4, 4, 2, 2], 'F#7/Bb@s': [-1, 1, 2, 3, 2, 2], 'F#7/C#@s': [-1, 4, 2, 3, 2, 2],
+  'F#7/E@s': [0, 4, 2, 3, 2, 2], 'F#m/A@s': [-1, 0, 4, 2, 2, 2], 'F#m/G#@s': [4, 4, 4, 2, 2, 2], 'F#m/B@s': [-1, 2, 4, 2, 2, 2],
+  'F#m/C#@s': [-1, 4, 4, 2, 2, 2], 'F#m/E@s': [0, 4, 4, 2, 2, 2], 'F#m/Eb@s': [-1, -1, 1, 2, 2, 2], 'F#m/F@s': [1, 4, 4, 2, 2, 2],
+  'F#m6/A@s': [-1, 0, 1, 2, 2, 2], 'F#m7/B@s': [-1, 2, 2, 2, 2, 2], 'F#m7/E@s': [0, 4, 2, 2, 2, 2], 'F/A@s': [-1, 0, 3, 2, 1, 1],
+  'F/C@s': [-1, 3, 3, 2, 1, 1], 'F/D@s': [-1, -1, 0, 2, 1, 1], 'F/E@s': [0, 3, 3, 2, 1, 1], 'F/Eb@s': [-1, -1, 1, 2, 1, 1],
+  'F/F#@s': [2, 3, 3, 2, 1, 1], 'F/G@s': [3, 3, 3, 2, 1, 1], 'Fsus4/C@s': [-1, 3, 3, 3, 1, 1], 'Fsus4/G@s': [3, 3, 3, 3, 1, 1],
+  'F5/G#@s': [4, 3, 3, -1, -1, -1], 'F5/G@s': [3, 3, 3, -1, -1, -1], 'F6/G@s': [3, -1, 3, 2, 3, 1], 'F7/A@s': [-1, 0, 1, 2, 1, 1],
+  'F7/E@s': [0, 3, 1, 2, 1, 1], 'F7/Eb@s': [-1, -1, 1, 2, 1, 1], 'Fmaj7/G@s': [3, -1, 3, 2, 1, 0], 'Fm/G#@s': [4, 3, 3, 1, 1, 1],
+  'Fm/C@s': [-1, 3, 3, 1, 1, 1], 'Fm/C#@s': [-1, 4, 3, 1, 1, 1], 'Fm/D@s': [-1, -1, 0, 1, 1, 1], 'Fm/Eb@s': [-1, -1, 1, 1, 1, 1],
+  'Fm/G@s': [3, 3, 3, 1, 1, 1], 'Fm7/G#@s': [4, 3, 1, 1, 1, 1], 'Fm7/Eb@s': [-1, -1, 1, 1, 1, 1], 'G#/D@s': [-1, 5, 6, 5, 4, 4],
+  'G#m/C#@s': [-1, 4, 6, 4, 4, 4], 'G#m/F@s': [-1, -1, 3, 4, 4, 4], 'G/A@s': [-1, 0, 0, 0, 0, 3], 'G/G#@s': [4, 2, 0, 0, 0, 3],
+  'G/B@s': [-1, 2, 0, 0, 0, 3], 'G/Bb@s': [-1, 1, 0, 0, 0, 3], 'G/C@s': [-1, 3, 0, 0, 0, 3], 'G/D@s': [-1, -1, 0, 0, 0, 3],
+  'G/E@s': [0, 2, 0, 0, 0, 3], 'G/F@s': [1, 2, 0, 0, 0, 3], 'G/F#@s': [2, 2, 0, 0, 0, 3], 'G5/A@s': [5, 5, 5, -1, -1, -1],
+  'G6/A@s': [-1, 0, 0, 0, 0, 0], 'G6/B@s': [-1, 2, 0, 0, 0, 0], 'G6/D@s': [-1, -1, 0, 0, 0, 0], 'G7/G#@s': [4, 2, 0, 0, 0, 1],
+  'G7/B@s': [-1, 2, 0, 0, 0, 1], 'G7/Bb@s': [-1, 1, 0, 0, 0, 1], 'G7/D@s': [-1, -1, 0, 0, 0, 1], 'Gm/C@s': [-1, 3, 5, 3, 3, 3],
+  'Gm/D@s': [-1, 5, 5, 3, 3, 3], 'Gm/E@s': [0, 5, 5, 3, 3, 3], 'Gm/Eb@s': [-1, -1, 1, 3, 3, 3], 'Gm/F@s': [-1, -1, 3, 3, 3, 3],
+  'Gm/F#@s': [2, 5, 5, 3, 3, 3], 'Gm6/Bb@s': [-1, 1, 2, 3, 3, 3], 'Gm7/B@s': [-1, 2, 3, 3, 3, 3], 'Gm7/D@s': [-1, 5, 3, 3, 3, 3],
+  'Gsus4/D@s': [-1, 5, 5, 5, 3, 3]
+};
+Object.assign(Engine.CHORDS, SLASH_SHAPES);
+</script>
 <script id="tuner">
 // כיוון: מזהה את הצליל של מיתר אחד, ואיזה מיתר פתוח הכי קרוב אליו
 var Tuner = (function () {
@@ -1100,7 +1201,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList', 'pickScr', 'tuneScr'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList', 'pickScr', 'tuneScr', 'lib'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -1286,9 +1387,11 @@ var Songs = (function () {
       R.measure = !!R.chord; R.from = R.chord; R.chord = Songs.pairNext(R.pair[0], R.pair[1], R.chord); // כל החלפה נמדדת, חוץ מהראשונה
     } else if (R.kind === 'song') {
       // הקפיצה להתחלת השיר והאקורד הראשון לא נמדדים
-      var res = Songs.pickNext(R.trans, R.chord, R.song.sequence[0], Math.random);
+      var res = R.next || Songs.pickNext(R.trans, R.chord, R.song.sequence[0], Math.random);
       R.measure = !!R.chord && !res.jump; R.from = R.chord; R.chord = res.chord;
+      R.next = Songs.pickNext(R.trans, R.chord, R.song.sequence[0], Math.random); // נבחר מראש כדי להציג אותו
     } else R.chord = E.pickNext(R.list, R.chord, Math.random);
+    $('#playHint').textContent = R.kind === 'song' ? 'Next: ' + (R.song.names[R.next.chord] || E.nameOf(R.next.chord)) : 'Play this chord';
     R.info = E.chordInfo(R.chord);
     var cn = $('#chordName'); cn.innerHTML = chordLabel(R.chord, R.song && R.song.names[R.chord]); cn.classList.remove('swap'); void cn.offsetWidth; cn.classList.add('swap');
     neckRefs = buildNeck(neckEl, R.chord, data.set.lefty);
@@ -1323,7 +1426,7 @@ var Songs = (function () {
     if (R.measure && Songs.record(data.changes, R.from, R.chord, now / 1000 - R.shownAt)) save(); // נשמר מיד, גם אם יוצאים באמצע
     if (R.kind !== 'pair' || R.from != null) R.score++; // בהלוך וחזור המספר סופר החלפות, והאקורד הראשון לא
     scoreEl.textContent = R.score;
-    scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
+    scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
     for (var s = 0; s < 6; s++) if (R.info.notes[s] != null) { neckRefs.fills[s].style.transform = 'scaleY(1)'; neckRefs.strs[s].classList.add('full'); }
     neckEl.classList.remove('win'); void neckEl.offsetWidth; neckEl.classList.add('win');
     sparkles();
@@ -1453,7 +1556,7 @@ var Songs = (function () {
     ul.innerHTML = '';
     if (!songList) return; // הרשימה עוד נטענת
     var r = Songs.search(songList, $('#songQuery').value);
-    if (!r.length) { if ($('#songQuery').value.trim()) { var n = document.createElement('li'); n.className = 'small'; n.textContent = 'No song found'; ul.appendChild(n); } return; }
+    if (!r.length) { var n = document.createElement('li'); n.className = 'small'; n.textContent = $('#songQuery').value.trim() ? 'No song found' : 'Type a song name or an artist.'; ul.appendChild(n); return; }
     r.forEach(function (s) {
       var li = document.createElement('li'), b = document.createElement('button');
       b.dir = 'rtl'; b.textContent = s.title + ' · ' + s.artist;
@@ -1575,10 +1678,53 @@ var Songs = (function () {
         b.dir = 'rtl'; b.textContent = s.title + ' · ' + s.artist;
         // שיר שאני יודע נפתח ישר בשלב ג. שיר בלמידה נפתח במסך השיר, עם א, ב, ג
         b.addEventListener('click', function () { songFrom = which; if (known) { curSong = s; begin('sheet'); } else openSong(s); });
-        li.appendChild(b); $('#myRes').appendChild(li);
+        var rm = document.createElement('button'); rm.className = 'btn ghost rm'; rm.textContent = 'Remove'; rm.setAttribute('aria-label', 'Remove ' + s.title);
+        rm.addEventListener('click', function () {
+          if (!confirm('Remove "' + s.title + '" from this list?')) return;
+          data[which] = data[which].filter(function (x) { return x !== id; }); save(); openMy(which);
+        });
+        li.className = 'my'; li.appendChild(b); li.appendChild(rm); $('#myRes').appendChild(li);
       });
     }, function () { $('#myEmpty').textContent = "Can't load the songs. Try again."; $('#myEmpty').hidden = false; });
   }
+  // ---- ספריית אקורדים: כל הצורות של אותו שם (מהשלבים ומהספר), בלי כפילויות ----
+  function libShapes(name) {
+    var seen = {};
+    return Object.keys(E.CHORDS).filter(function (id) {
+      var k = E.CHORDS[id].join(',');
+      if (E.nameOf(id) !== name || seen[k]) return false;
+      return (seen[k] = true);
+    });
+  }
+  function renderLib() {
+    var q = $('#libQuery').value.trim(), res = $('#libRes'), msg = $('#libMsg');
+    q = q.charAt(0).toUpperCase() + q.slice(1); // am → Am
+    res.innerHTML = '';
+    if (!q) { msg.textContent = 'Type a chord name to see every way to play it.'; return; }
+    var ids = libShapes(q);
+    if (ids.length) {
+      msg.textContent = q + ': ' + ids.length + (ids.length > 1 ? ' ways to play it' : ' way to play it');
+      res.innerHTML = ids.map(function (id, k) { return '<figure><figcaption>' + (k + 1) + '</figcaption><div class="neck mini" role="img" aria-label="' + q + ', way ' + (k + 1) + '"></div></figure>'; }).join('');
+      Array.prototype.forEach.call(res.querySelectorAll('.neck'), function (el, k) { buildNeck(el, ids[k], data.set.lefty); });
+    }
+    // שמות אחרים שמתחילים במה שנכתב (F# → F#m, F#7...)
+    var names = {}; Object.keys(E.CHORDS).forEach(function (id) { var n = E.nameOf(id); if (n !== q && n.indexOf(q) === 0) names[n] = 1; });
+    var list = Object.keys(names).sort(function (a, b) { return a.length - b.length || (a < b ? -1 : 1); }).slice(0, 40);
+    if (!ids.length) msg.textContent = list.length ? 'Did you mean:' : 'No chord found';
+    if (!list.length) return;
+    if (ids.length) { var h = document.createElement('p'); h.className = 'small'; h.style.width = '100%'; h.textContent = 'More chords:'; res.appendChild(h); }
+    var box = document.createElement('div'); box.className = 'chips';
+    list.forEach(function (n) {
+      var c = document.createElement('button'); c.className = 'chip'; c.textContent = n;
+      c.addEventListener('click', function () { $('#libQuery').value = n; renderLib(); });
+      box.appendChild(c);
+    });
+    res.appendChild(box);
+  }
+  $('#libBtn').addEventListener('click', function () { $('#libQuery').value = ''; renderLib(); show('lib'); $('#libQuery').focus(); });
+  $('#libBack').addEventListener('click', function () { renderLevels(); show('levels'); });
+  $('#libQuery').addEventListener('input', renderLib);
+
   $('#knownBtn').addEventListener('click', function () { openMy('known'); });
   $('#learnBtn').addEventListener('click', function () { openMy('learning'); });
   $('#myBack').addEventListener('click', function () { renderLevels(); show('levels'); });
@@ -1590,8 +1736,8 @@ var Songs = (function () {
     li.innerHTML = '<span class="ch-pair"></span><span class="ch-sec"></span><span class="ch-dots"></span><button class="btn ghost">Practice</button>';
     li.children[0].textContent = s.names[r.from] + ' → ' + s.names[r.to];
     li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
-    li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
-    li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
+    if (r.avg != null) li.children[1].className = 'ch-sec ' + (r.avg < 1.5 ? 'fast' : 'slow'); // ירוק: מתחת לשנייה וחצי
+    li.children[2].textContent = k + '/' + Songs.QUOTA + ' tries';
     li.children[3].addEventListener('click', function () { startPair([r.from, r.to]); });
     return li;
   }
@@ -1676,11 +1822,11 @@ var Songs = (function () {
 
   // ---- כיוון ----
   // מיתר נחשב מכוון אחרי שישב חצי שנייה בטווח של 5 סנט. כשכל השישה מכוונים, ממשיכים לבד
-  var tuned = false, TU = null;
+  var tuned = false, TU = null, TUNE_WHICH = ['6th string · thickest', '5th string', '4th string', '3rd string', '2nd string', '1st string · thinnest'];
   function tuneOpen() {
     TU = { ok: [0, 0, 0, 0, 0, 0], hist: [], last: 0, inSince: 0, heard: 0, doneAt: 0 };
     $('#tuneStrings').innerHTML = Tuner.NAMES.map(function (n) { return '<span>' + n + '</span>'; }).join('');
-    $('#tuneNote').className = 'tune-note idle'; $('#tuneNeedle').className = 'tune-needle'; $('#tuneHint').innerHTML = '&nbsp;';
+    $('#tuneNote').className = 'tune-note idle'; $('#tuneNeedle').className = 'tune-needle'; $('#tuneHint').innerHTML = '&nbsp;'; $('#tuneWhich').innerHTML = '&nbsp;';
     var d = $('#tuneDone'); d.textContent = 'Skip'; d.className = 'btn ghost';
     show('tuneScr'); requestWake(); startLoop();
   }
@@ -1693,8 +1839,9 @@ var Songs = (function () {
     var hz = Tuner.pitch(grab(), A.ctx.sampleRate), chips = $('#tuneStrings').children;
     if (hz) { TU.hist.push(hz); if (TU.hist.length > 5) TU.hist.shift(); TU.heard = now; }
     else if (now - TU.heard > 400) TU.hist = [];
-    if (!TU.hist.length) { $('#tuneNote').classList.add('idle'); $('#tuneNeedle').classList.remove('on'); $('#tuneHint').innerHTML = '&nbsp;'; TU.inSince = 0; return; }
+    if (!TU.hist.length) { $('#tuneNote').classList.add('idle'); $('#tuneNeedle').classList.remove('on'); $('#tuneHint').innerHTML = '&nbsp;'; $('#tuneWhich').innerHTML = '&nbsp;'; TU.inSince = 0; return; }
     var med = TU.hist.slice().sort(function (a, b) { return a - b; })[TU.hist.length >> 1], r = Tuner.nearest(med), inTune = Math.abs(r.cents) < 2; // כמו מכוון מקצועי. 5 סנט זה כבר על הגבול של מה שאוזן שומעת
+    $('#tuneWhich').textContent = TUNE_WHICH[r.string];
     $('#tuneNote').textContent = r.name; $('#tuneNote').className = 'tune-note' + (inTune ? ' ok' : '');
     var nd = $('#tuneNeedle'); nd.className = 'tune-needle on' + (inTune ? ' ok' : '');
     nd.style.transform = 'translateX(' + (Math.max(-50, Math.min(50, r.cents)) / 50 * (nd.parentNode.clientWidth / 2 - 14)) + 'px)';
