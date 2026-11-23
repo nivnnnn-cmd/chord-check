@@ -146,12 +146,22 @@ p{margin:0}
 
 /* ---------- שירים ---------- */
 .song-q{width:100%;min-height:52px;margin:12px 0;padding:0 14px;border-radius:14px;border:1.5px solid var(--line);background:rgba(243,233,214,.07);color:var(--bone);font:inherit;font-size:18px;-webkit-user-select:text;user-select:text}
+.my-btns{display:flex;gap:10px;margin:0 0 14px}
+.my-btns .btn{flex:1;min-height:48px}
 .song-res{list-style:none;margin:0;padding:0}
 .song-res li+li{border-top:1px solid var(--line)}
 .song-res button{width:100%;padding:14px 4px;text-align:right;font-size:18px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
 .chip{min-width:52px;min-height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--line);font:700 17px/1 var(--display)}
 .chip.on{background:var(--bone);color:var(--bg)}
+/* בועת הציור: נפתחת מתחת לאקורד שנלחץ, באותו מסך */
+.pop{position:fixed;z-index:50;padding:10px 12px 12px;border-radius:16px;background:var(--wood);border:1px solid var(--line);
+  box-shadow:0 12px 32px rgba(0,0,0,.55);text-align:center;transform-origin:var(--ax) 0;animation:popin .16s ease-out}
+.pop::before{content:"";position:absolute;top:-7px;left:calc(var(--ax) - 6px);width:12px;height:12px;background:var(--wood);
+  border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+.pop b{display:block;font:700 18px/1 var(--display);margin-bottom:4px}
+@keyframes popin{from{opacity:0;transform:scale(.92)}}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
 .btn:disabled{opacity:.4;pointer-events:none}
 #song .res-btns{margin-top:8px}
 
@@ -217,9 +227,18 @@ p{margin:0}
 .combo i.on{background:var(--lit);box-shadow:0 0 12px rgba(63,220,124,.5)}
 .combo.burst i{background:var(--lit-hi);box-shadow:0 0 18px rgba(180,255,208,.8)}
 .sheet-top{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+/* רקע שמכסה גם מעל הפס ובצדדים, כדי שמילים ו-✓ שעוברים בגלילה לא יציצו מאחוריו */
+.sheet-top::before{content:"";position:absolute;inset:-60px -40px 0;background:var(--bg);z-index:-1}
 .sheet-top .iconbtn{background:rgba(243,233,214,.07);flex:none}
 #sheetName{font:800 44px/1 var(--display);flex:1;text-align:center}
-#sheetEnd{flex:1;display:flex;flex-direction:column;gap:10px;text-align:center;font-weight:700;font-size:20px}
+#sheetEnd{position:fixed;z-index:5;left:0;right:0;bottom:0;max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:10px;
+  padding:22px 16px calc(18px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:var(--wood);text-align:center;
+  box-shadow:0 0 0 100vmax rgba(0,0,0,.5),0 -10px 30px rgba(0,0,0,.4);animation:endup .32s cubic-bezier(.2,.8,.2,1)}
+#sheetEnd[hidden]{display:none}
+#sheetEnd p{margin:0 0 6px;font:700 22px/1.2 var(--display)}
+#sheetEnd .end-mark{width:52px;height:52px;margin:0 auto;border-radius:50%;display:grid;place-items:center;background:var(--brass);color:var(--brass-ink);font:800 26px/1 var(--display)}
+@keyframes endup{from{transform:translateY(100%);box-shadow:0 0 0 100vmax rgba(0,0,0,0),0 -10px 30px rgba(0,0,0,0)}}
+@media (prefers-reduced-motion:reduce){#sheetEnd{animation:none}}
 #sheetEnd .btn{min-height:48px}
 #sheetBody{font-size:21px;line-height:1.3;padding:14px 0 45vh}
 #sheetBody p,#sheetBody .ln-chords{margin:0 0 10px}
@@ -231,7 +250,9 @@ p{margin:0}
 #sheetBody .lb{color:var(--muted)}
 #sheetBody .ch.now{background:var(--brass);color:var(--brass-ink)}
 #sheetBody .ch.done{color:var(--lit)}
-#sheetBody .ch.done::after{content:' ✓'}
+/* ה-✓ קטן בפינה העליונה של האקורד, ולא תופס מקום, כדי שלא ירחיב את המילים מתחת */
+#sheetBody .ch{position:relative}
+#sheetBody .ch.done::after{content:'✓';position:absolute;top:-.3em;right:-.35em;font-size:.7em;line-height:1}
 .hint{text-align:center;color:var(--muted);font-size:17px;padding-bottom:4px}
 .bonus{position:fixed;font:800 26px/1 var(--display);color:var(--lit-hi);pointer-events:none;z-index:30;text-shadow:0 2px 12px rgba(63,220,124,.6)}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:20;overflow:hidden}
@@ -293,6 +314,8 @@ fieldset.row legend{float:left;padding:0}
 .ch-pair{font:700 18px/1.2 var(--display)}
 .ch-sec{font-variant-numeric:tabular-nums}
 .ch-dots{color:var(--brass);letter-spacing:2px}
+#pickScr .ch-list{margin-bottom:8px}
+.pick-h{margin-top:22px}
 .ch-list .btn{width:auto;min-height:44px;padding:0 14px;font-size:16px}
 
 @media (prefers-reduced-motion:reduce){
@@ -331,6 +354,7 @@ fieldset.row legend{float:left;padding:0}
       <button id="songsBtn" class="btn ghost songs-btn">Songs</button>
       <button id="gearBtn" class="iconbtn" aria-label="Settings"><svg class="icon"><use href="#i-gear"/></svg></button>
     </div>
+    <div class="my-btns"><button id="knownBtn" class="btn ghost">Songs I know</button><button id="learnBtn" class="btn ghost">Learning</button></div>
     <ul id="levelList"></ul>
     <p id="levelNote" class="lv-note"></p>
   </div>
@@ -477,18 +501,40 @@ fieldset.row legend{float:left;padding:0}
   </div>
 </section>
 
+<!-- רשימה: שירים שאני יודע / שירים בלמידה -->
+<section id="myList" class="screen" hidden>
+  <div class="col">
+    <div class="topbar"><h2 id="myTitle"></h2><button id="myBack" class="btn ghost songs-btn">Back</button></div>
+    <ul id="myRes" class="song-res"></ul>
+    <p id="myEmpty" class="small" hidden></p>
+  </div>
+</section>
+
 <!-- מסך שיר -->
 <section id="song" class="screen" hidden>
   <div class="col">
     <div class="topbar"><h2 id="songTitle" dir="rtl"></h2><button id="songBack" class="btn ghost songs-btn">Back</button></div>
     <p id="songArtist" class="small" dir="rtl"></p>
     <div id="songChips" class="chips"></div>
+    <div id="chordPop" class="pop" hidden><b id="popName"></b><div id="popNeck" class="neck mini" role="img"></div></div>
     <p id="songOne" class="small" hidden>This song has one chord.</p>
     <div class="res-btns">
       <button id="btnA" class="btn primary">A · Play the changes</button>
       <button id="btnB" class="btn ghost">B · Practice one change</button>
       <button id="btnC" class="btn ghost">C · Play the song</button>
+      <button id="btnLearn" class="btn ghost">Add to Learning</button>
     </div>
+  </div>
+</section>
+
+<!-- שלב ב: בוחרים מעבר לתרגול -->
+<section id="pickScr" class="screen" hidden>
+  <div class="col">
+    <div class="topbar"><h2>Pick a change</h2><button id="pickBack" class="btn ghost songs-btn">Back</button></div>
+    <p id="pickSlowT" class="small">Your 5 slowest changes</p>
+    <ul id="pickSlow" class="ch-list"></ul>
+    <p id="pickNewT" class="small pick-h">Not played yet</p>
+    <ul id="pickNew" class="ch-list"></ul>
   </div>
 </section>
 
@@ -515,13 +561,16 @@ fieldset.row legend{float:left;padding:0}
       <button id="shPause" class="iconbtn" aria-label="Pause"><svg class="icon"><use href="#i-pause"/></svg></button>
       <div id="sheetName" aria-live="polite"></div>
       <div id="sheetNeck" class="neck mini" role="img"></div>
-      <div id="sheetEnd" hidden>
-        <p>You played the whole song!</p>
-        <button id="shAgain" class="btn primary">Again</button>
-        <button id="shBack" class="btn ghost">Back</button>
-      </div>
     </div>
     <div id="sheetBody" dir="rtl"></div>
+    <!-- סוף השיר: כרטיס שעולה מלמטה מעל המילים, בלי לשנות את החלק העליון -->
+    <div id="sheetEnd" role="dialog" aria-label="Song finished" hidden>
+      <span class="end-mark" aria-hidden="true">✓</span>
+      <p>You played the whole song!</p>
+      <button id="shAgain" class="btn primary">Again</button>
+      <button id="shKnow" class="btn ghost">Add to Songs I know</button>
+      <button id="shBack" class="btn ghost">Back</button>
+    </div>
   </div>
 </section>
 
@@ -947,6 +996,7 @@ var Songs = (function () {
     ['changes', 'songBest', 'pairBest'].forEach(function (k) { if (!d[k] || typeof d[k] !== 'object' || Array.isArray(d[k])) d[k] = {}; });
     if (!d.c41 || typeof d.c41 !== 'object' || Array.isArray(d.c41)) d.c41 = {};
     if (!d.check || typeof d.check !== 'object' || Array.isArray(d.check)) d.check = {};
+    ['known', 'learning'].forEach(function (k) { if (!Array.isArray(d[k])) d[k] = []; });
     d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true, allOpen: false }, d.set || {});
     if (!E.LEVELS[d.set.level]) d.set.level = 'normal';
     return d;
@@ -965,7 +1015,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList', 'pickScr'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -1016,6 +1066,7 @@ var Songs = (function () {
   }
 
   // ---- שמע ----
+  var FAKE = /[?&]fake\b/.test(location.search); // גיטרה מדומה, ראו בסוף הקובץ
   var A = { ctx: null, an: null, buf: null, listener: null, stream: null };
   function micLive() { return !!(A.stream && A.stream.getAudioTracks().some(function (t) { return t.readyState === 'live'; })); }
   function initAudio() {
@@ -1025,7 +1076,7 @@ var Songs = (function () {
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!A.ctx) A.ctx = new AC();
     A.ctx.resume().catch(function () {}); // חייב לקרות בתוך הלחיצה, בגלל הכללים של Safari
-    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false })
+    return (FAKE ? Promise.resolve(A.ctx.createMediaStreamDestination().stream) : navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false }))
       .then(function (stream) {
         A.ctx.resume().catch(function () {});
         var src = A.ctx.createMediaStreamSource(stream), an = A.ctx.createAnalyser();
@@ -1035,6 +1086,7 @@ var Songs = (function () {
         src.connect(an); an.connect(sink); sink.connect(A.ctx.destination);
         A.stream = stream; A.an = an; A.buf = new Float32Array(N); A.listener = E.createListener(A.ctx.sampleRate, N);
         stream.getAudioTracks().forEach(function (t) { t.addEventListener('ended', onMicLost); });
+        if (FAKE) fakeNoiseOn(); // רעש חלש כמו בחדר, כדי שהכיול יעבוד כמו עם מיקרופון אמיתי
       });
   }
   function onMicLost() { if (mode === 'play' || mode === 'count' || mode === 'check' || mode === 'sheet') { stopLoop(); hideOverlays(); } showMicError('The mic stopped. Tap Start.'); show('home'); }
@@ -1243,7 +1295,7 @@ var Songs = (function () {
   $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
   $('#quitBtn').addEventListener('click', function () {
     hideOverlays(); stopLoop(); releaseWake();
-    if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
+    if (R && R.kind === 'sheet' && songFrom === 'known') openMy('known'); else if (R && R.kind === 'pair') openPick(); else if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
     R = null;
   });
   document.addEventListener('visibilitychange', function () {
@@ -1286,7 +1338,23 @@ var Songs = (function () {
   $('#backBtn').addEventListener('click', function () { renderLevels(); show('levels'); });
 
   // ---- שירים ----
-  var songList = null, songPick = [], curSong = null; // songPick: עד שני אקורדים שנבחרו לשלב ב
+  var songList = null, curSong = null;
+  // ציור האקורד בבועה מתחת לאקורד. לחיצה נוספת עליו, או בכל מקום אחר, סוגרת
+  var popFor = null;
+  function togglePop(chip, id) {
+    var pop = $('#chordPop');
+    Array.prototype.forEach.call($('#songChips').children, function (x) { x.classList.remove('on'); });
+    if (popFor === id) { popFor = null; pop.hidden = true; return; }
+    popFor = id; chip.classList.add('on');
+    $('#popName').textContent = curSong.names[id]; buildNeck($('#popNeck'), id, data.set.lefty);
+    pop.hidden = false;
+    var r = chip.getBoundingClientRect(), w = pop.offsetWidth, cx = r.left + r.width / 2;
+    var left = Math.max(16, Math.min(innerWidth - 16 - w, cx - w / 2));
+    pop.style.left = left + 'px'; pop.style.top = (r.bottom + 10) + 'px'; pop.style.setProperty('--ax', (cx - left) + 'px');
+  }
+  function closePop() { if (popFor == null) return; popFor = null; $('#chordPop').hidden = true; Array.prototype.forEach.call($('#songChips').children, function (x) { x.classList.remove('on'); }); }
+  document.addEventListener('click', function (e) { if (!e.target.closest('#songChips') && !e.target.closest('#chordPop')) closePop(); }, true);
+  addEventListener('resize', closePop); addEventListener('scroll', closePop, true);
   function songMsg(t) { var e = $('#songMsg'); e.textContent = t || ''; e.hidden = !t; }
   function loadSongs() {
     if (songList) return Promise.resolve(songList);
@@ -1303,7 +1371,7 @@ var Songs = (function () {
     r.forEach(function (s) {
       var li = document.createElement('li'), b = document.createElement('button');
       b.dir = 'rtl'; b.textContent = s.title + ' · ' + s.artist;
-      b.addEventListener('click', function () { openSong(s); });
+      b.addEventListener('click', function () { songFrom = null; openSong(s); });
       li.appendChild(b); ul.appendChild(li);
     });
   }
@@ -1316,21 +1384,17 @@ var Songs = (function () {
     loadSongs().then(function () { renderResults(); $('#songQuery').focus(); }, function () { $('#songFind').hidden = true; songMsg("Can't load the songs. Try again."); });
   }
   function openSong(s) {
-    curSong = s; songPick = [];
+    curSong = s; popFor = null; $('#chordPop').hidden = true;
     $('#songTitle').textContent = s.title; $('#songArtist').textContent = s.artist;
     var ids = Object.keys(s.names), one = ids.length < 2, box = $('#songChips');
     box.innerHTML = '';
     ids.forEach(function (id) {
       var c = document.createElement('button'); c.className = 'chip'; c.textContent = s.names[id];
-      c.addEventListener('click', function () {
-        var i = songPick.indexOf(id);
-        if (i >= 0) songPick.splice(i, 1); else { if (songPick.length === 2) songPick.shift(); songPick.push(id); }
-        Array.prototype.forEach.call(box.children, function (x, j) { x.classList.toggle('on', songPick.indexOf(ids[j]) >= 0); });
-      });
+      c.addEventListener('click', function () { togglePop(c, id); });
       box.appendChild(c);
     });
     $('#btnA').disabled = one; $('#btnB').disabled = one; $('#songOne').hidden = !one;
-    show('song');
+    markLearn(); show('song');
   }
   // ---- שלב ג: הדף של השיר. האקורדים באותו סדר כמו song.sequence, ולא נרשמות מדידות ----
   var shEls = [];
@@ -1363,7 +1427,7 @@ var Songs = (function () {
   function sheetNext() {
     if (R.idx >= R.n) { // סוף השיר
       stopLoop(); releaseWake(); R.state = 'done';
-      $('#sheetName').hidden = true; $('#sheetNeck').hidden = true; $('#shPause').hidden = true; $('#sheetEnd').hidden = false;
+      $('#shPause').hidden = true; $('#sheetEnd').hidden = false; markKnow();
       return;
     }
     R.chord = R.song.sequence[R.idx]; R.info = E.chordInfo(R.chord);
@@ -1389,7 +1453,74 @@ var Songs = (function () {
   $('#btnC').addEventListener('click', function () { begin('sheet'); });
   $('#chSong').addEventListener('click', function () { begin('sheet'); });
   $('#shAgain').addEventListener('click', function () { begin('sheet'); });
-  $('#shBack').addEventListener('click', function () { show('song'); });
+
+  // ---- שירים שאני יודע / שירים בלמידה. שיר נמצא לכל היותר באחת משתי הרשימות ----
+  var songFrom = null; // 'known' / 'learning' כשהשיר נפתח מאחת הרשימות
+  function moveSong(id, to) {
+    var from = to === 'known' ? 'learning' : 'known';
+    data[from] = data[from].filter(function (x) { return x !== id; });
+    if (data[to].indexOf(id) < 0) data[to].unshift(id);
+    save();
+  }
+  function markLearn() {
+    var b = $('#btnLearn'), on = data.learning.indexOf(curSong.id) >= 0;
+    b.disabled = on; b.textContent = on ? 'In Learning ✓' : 'Add to Learning';
+  }
+  function markKnow() {
+    var b = $('#shKnow'), on = data.known.indexOf(curSong.id) >= 0;
+    b.disabled = on; b.textContent = on ? 'In Songs I know ✓' : 'Add to Songs I know';
+  }
+  $('#btnLearn').addEventListener('click', function () {
+    if (data.known.indexOf(curSong.id) >= 0 && !confirm('You already learned this song. Learn it again?')) return;
+    moveSong(curSong.id, 'learning'); markLearn(); toast('Added to Learning');
+  });
+  $('#shKnow').addEventListener('click', function () { moveSong(curSong.id, 'known'); markKnow(); toast('Added to Songs I know'); });
+  function openMy(which) {
+    var known = which === 'known';
+    $('#myTitle').textContent = known ? 'Songs I know' : 'Learning';
+    $('#myRes').innerHTML = ''; $('#myEmpty').hidden = true; show('myList');
+    if (!data.songKey) { $('#myEmpty').textContent = 'Add the song book first (Songs).'; $('#myEmpty').hidden = false; return; }
+    loadSongs().then(function (list) {
+      var byId = {}; list.forEach(function (s) { byId[s.id] = s; });
+      var ids = data[which].filter(function (id) { return byId[id]; });
+      if (!ids.length) { $('#myEmpty').textContent = known ? 'Finish a song in part C to add it here.' : 'Open a song and tap Add to Learning.'; $('#myEmpty').hidden = false; }
+      ids.forEach(function (id) {
+        var s = byId[id], li = document.createElement('li'), b = document.createElement('button');
+        b.dir = 'rtl'; b.textContent = s.title + ' · ' + s.artist;
+        // שיר שאני יודע נפתח ישר בשלב ג. שיר בלמידה נפתח במסך השיר, עם א, ב, ג
+        b.addEventListener('click', function () { songFrom = which; if (known) { curSong = s; begin('sheet'); } else openSong(s); });
+        li.appendChild(b); $('#myRes').appendChild(li);
+      });
+    }, function () { $('#myEmpty').textContent = "Can't load the songs. Try again."; $('#myEmpty').hidden = false; });
+  }
+  $('#knownBtn').addEventListener('click', function () { openMy('known'); });
+  $('#learnBtn').addEventListener('click', function () { openMy('learning'); });
+  $('#myBack').addEventListener('click', function () { renderLevels(); show('levels'); });
+  $('#shBack').addEventListener('click', function () { if (songFrom === 'known') openMy('known'); else { markLearn(); show('song'); } });
+
+  // שורה של מעבר: השם, הזמן הממוצע, כמה פעמים נמדד, וכפתור לתרגול בשלב ב
+  function chRow(s, r) {
+    var li = document.createElement('li'), k = Math.min(r.n, Songs.QUOTA);
+    li.innerHTML = '<span class="ch-pair"></span><span class="ch-sec"></span><span class="ch-dots"></span><button class="btn ghost">Practice</button>';
+    li.children[0].textContent = s.names[r.from] + ' → ' + s.names[r.to];
+    li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
+    li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
+    li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
+    li.children[3].addEventListener('click', function () { startPair([r.from, r.to]); });
+    return li;
+  }
+  // שלב ב: 5 המעברים האיטיים מבין אלה שנמדדו, ומתחתם כל מה שעוד לא נוגן
+  function openPick() {
+    var st = Songs.stats(data.changes, Songs.transitions(curSong.sequence));
+    var slow = st.filter(function (r) { return r.avg != null; }).slice(0, 5), fresh = st.filter(function (r) { return r.avg == null; });
+    $('#pickSlow').innerHTML = ''; $('#pickNew').innerHTML = '';
+    slow.forEach(function (r) { $('#pickSlow').appendChild(chRow(curSong, r)); });
+    fresh.forEach(function (r) { $('#pickNew').appendChild(chRow(curSong, r)); });
+    $('#pickSlowT').hidden = !slow.length; $('#pickNewT').hidden = !fresh.length;
+    $('#pickNewT').classList.toggle('pick-h', !!slow.length);
+    show('pickScr');
+  }
+  $('#pickBack').addEventListener('click', function () { show('song'); });
 
   // ---- מסך המעברים, בסוף סבב של שיר ----
   function showChanges() {
@@ -1402,32 +1533,19 @@ var Songs = (function () {
     bigStars($('#chStars'), E.starsFor(n)); // לתצוגה בלבד, לא נשמר
     $('#chNum').textContent = pair ? s.names[R.pair[0]] + ' ⇄ ' + s.names[R.pair[1]] + ': ' + n + ' switches · Best ' + best : 'Chords played ' + n + ' · Best ' + best;
     ul.innerHTML = '';
-    Songs.stats(data.changes, R.trans).forEach(function (r) {
-      var li = document.createElement('li'), k = Math.min(r.n, Songs.QUOTA);
-      li.innerHTML = '<span class="ch-pair"></span><span class="ch-sec"></span><span class="ch-dots"></span><button class="btn ghost">Practice</button>';
-      li.children[0].textContent = s.names[r.from] + ' → ' + s.names[r.to];
-      li.children[1].textContent = r.avg == null ? '–' : r.avg.toFixed(1) + ' s';
-      li.children[2].textContent = '●'.repeat(k) + '○'.repeat(Songs.QUOTA - k);
-      li.children[2].setAttribute('aria-label', k + ' of ' + Songs.QUOTA + ' tries');
-      li.children[3].addEventListener('click', function () { startPair([r.from, r.to]); });
-      ul.appendChild(li);
-    });
+    Songs.stats(data.changes, R.trans).forEach(function (r) { ul.appendChild(chRow(s, r)); });
     $('#chDone').hidden = !Songs.quotaMet(data.changes, R.trans);
     show('changes');
   }
   $('#btnA').addEventListener('click', function () { begin('song'); });
-  // שלב ב: שני אקורדים שנבחרו, או המעבר האיטי ביותר לפי המדידות
+  // שלב ב: המעבר שנבחר ברשימה
   function startPair(p) { curPair = p; begin('pair'); }
-  $('#btnB').addEventListener('click', function () {
-    if (songPick.length === 2) return startPair(songPick.slice());
-    var slow = Songs.stats(data.changes, Songs.transitions(curSong.sequence))[0];
-    if (slow && slow.avg != null) startPair([slow.from, slow.to]); else toast('Pick two chords.');
-  });
+  $('#btnB').addEventListener('click', openPick);
   $('#chAgain').addEventListener('click', function () { begin(R.g); });
-  $('#chBack').addEventListener('click', function () { show('song'); });
+  $('#chBack').addEventListener('click', function () { if (R && R.kind === 'pair') openPick(); else show('song'); });
   $('#songsBtn').addEventListener('click', openSongs);
   $('#songsBack').addEventListener('click', function () { renderLevels(); show('levels'); });
-  $('#songBack').addEventListener('click', function () { show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
+  $('#songBack').addEventListener('click', function () { if (songFrom === 'learning') openMy('learning'); else show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
   $('#songQuery').addEventListener('input', renderResults);
   $('#bookFile').addEventListener('change', function (ev) {
     var f = ev.target.files[0]; ev.target.value = '';
@@ -1573,6 +1691,46 @@ var Songs = (function () {
   if (location.hash === '#check41') c41Open();
   if (location.hash === '#check') chkOpen();
   if (fromTests) testsOpen();
+
+  // ---- גיטרה מדומה (?fake): בדיקה בלי גיטרה. הכפתור משמיע את האקורד המבוקש, בצורה הנכונה, ישר למנוע הזיהוי ----
+  // shortcut: עותק של render מ-tests/synth.mjs, כי tests לא עולה לאתר. אם משנים שם את הצליל, לשנות גם כאן
+  function fakeRender(sr, len, frets) {
+    var seed = (Math.random() * 1e9) | 0, r = function () { seed = (seed + 0x6D2B79F5) | 0; var t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    var mic = function (f) { var x = Math.pow(f / 100, 2); return x / Math.sqrt(1 + x * x); }, out = new Float32Array(Math.round(len * sr));
+    frets.forEach(function (fr, s) {
+      if (fr < 0) return;
+      var f0 = E.hz(E.OPEN[s] + fr) * Math.pow(2, (r() * 24 - 12) / 1200), g = 0.5 + 0.5 * r(), t0 = 0.05 + s * 0.012 + r() * 0.004, B = s < 3 ? 1.5e-4 : 0.5e-4, beta = 0.12 + 0.12 * r(), start = Math.round(t0 * sr);
+      for (var h = 1; h <= 16; h++) {
+        var fh = h * f0 * Math.sqrt(1 + B * h * h); if (fh > 5000) break;
+        var a = 0.1 * g * (1 / h) * Math.abs(Math.sin(Math.PI * h * beta)) * mic(fh), tau = 2.5 / (1 + 0.25 * h), w = 2 * Math.PI * fh / sr, ph = r() * 6.283, end = Math.min(out.length, start + Math.round(tau * 6 * sr));
+        for (var i = start; i < end; i++) { var tt = (i - start) / sr; out[i] += a * Math.exp(-tt / tau) * Math.min(1, tt / 0.004) * Math.sin(w * (i - start) + ph); }
+      }
+    });
+    return out;
+  }
+  function fakePlay(data, loop) {
+    var b = A.ctx.createBuffer(1, data.length, A.ctx.sampleRate); b.getChannelData(0).set(data);
+    var s = A.ctx.createBufferSource(), g = A.ctx.createGain(), t = A.ctx.currentTime; s.buffer = b; s.loop = !!loop; s.connect(g); g.connect(A.an);
+    if (loop) { s.start(); return; }
+    g.connect(A.ctx.destination); // שתשמע את הפריטה
+    // האקורד הקודם דועך בערך בעשירית שנייה, כמו יד שמשתיקה את המיתרים, ולא נחתך בבת אחת
+    if (fakeLast) { fakeLast.g.gain.setTargetAtTime(0, t, 0.04); fakeLast.s.stop(t + 0.4); }
+    fakeLast = { s: s, g: g }; s.start(t);
+  }
+  var fakeLast = null;
+  function fakeNoiseOn() { var n = new Float32Array(A.ctx.sampleRate); for (var i = 0; i < n.length; i++) n[i] = 0.002 * (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.7; fakePlay(n, true); }
+  if (FAKE) {
+    var fakeBtn = document.createElement('button');
+    fakeBtn.textContent = '🎸 Strum'; fakeBtn.setAttribute('aria-label', 'Fake guitar: strum the right chord');
+    fakeBtn.style.cssText = 'position:fixed;right:6px;top:42%;z-index:9999;padding:10px 12px;font-size:16px;opacity:.9;border-radius:14px;border:0;background:#f5a623;color:#000';
+    document.body.appendChild(fakeBtn);
+    fakeBtn.addEventListener('click', function () {
+      if (!A.an) return toast('Tap Start first');
+      var name = mode === 'check' && C ? checkList[C.i] : R && R.chord;
+      if (!name || !E.CHORDS[name]) return toast('No chord to play');
+      fakePlay(fakeRender(A.ctx.sampleRate, 3, E.CHORDS[name]));
+    });
+  }
 })();
 </script>
 </body>
