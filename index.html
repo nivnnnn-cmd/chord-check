@@ -1594,10 +1594,14 @@ var Songs = (function () {
   }
   function fakePlay(data, loop) {
     var b = A.ctx.createBuffer(1, data.length, A.ctx.sampleRate); b.getChannelData(0).set(data);
-    var s = A.ctx.createBufferSource(); s.buffer = b; s.loop = !!loop; s.connect(A.an);
-    if (!loop) s.connect(A.ctx.destination); // שתשמע את הפריטה
-    s.start(); return s;
+    var s = A.ctx.createBufferSource(), g = A.ctx.createGain(), t = A.ctx.currentTime; s.buffer = b; s.loop = !!loop; s.connect(g); g.connect(A.an);
+    if (loop) { s.start(); return; }
+    g.connect(A.ctx.destination); // שתשמע את הפריטה
+    // האקורד הקודם דועך בערך בעשירית שנייה, כמו יד שמשתיקה את המיתרים, ולא נחתך בבת אחת
+    if (fakeLast) { fakeLast.g.gain.setTargetAtTime(0, t, 0.04); fakeLast.s.stop(t + 0.4); }
+    fakeLast = { s: s, g: g }; s.start(t);
   }
+  var fakeLast = null;
   function fakeNoiseOn() { var n = new Float32Array(A.ctx.sampleRate); for (var i = 0; i < n.length; i++) n[i] = 0.002 * (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.7; fakePlay(n, true); }
   if (FAKE) {
     var fakeBtn = document.createElement('button');
