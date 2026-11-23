@@ -146,6 +146,8 @@ p{margin:0}
 
 /* ---------- שירים ---------- */
 .song-q{width:100%;min-height:52px;margin:12px 0;padding:0 14px;border-radius:14px;border:1.5px solid var(--line);background:rgba(243,233,214,.07);color:var(--bone);font:inherit;font-size:18px;-webkit-user-select:text;user-select:text}
+.my-btns{display:flex;gap:10px;margin:0 0 14px}
+.my-btns .btn{flex:1;min-height:48px}
 .song-res{list-style:none;margin:0;padding:0}
 .song-res li+li{border-top:1px solid var(--line)}
 .song-res button{width:100%;padding:14px 4px;text-align:right;font-size:18px}
@@ -331,6 +333,7 @@ fieldset.row legend{float:left;padding:0}
       <button id="songsBtn" class="btn ghost songs-btn">Songs</button>
       <button id="gearBtn" class="iconbtn" aria-label="Settings"><svg class="icon"><use href="#i-gear"/></svg></button>
     </div>
+    <div class="my-btns"><button id="knownBtn" class="btn ghost">Songs I know</button><button id="learnBtn" class="btn ghost">Learning</button></div>
     <ul id="levelList"></ul>
     <p id="levelNote" class="lv-note"></p>
   </div>
@@ -477,6 +480,15 @@ fieldset.row legend{float:left;padding:0}
   </div>
 </section>
 
+<!-- רשימה: שירים שאני יודע / שירים בלמידה -->
+<section id="myList" class="screen" hidden>
+  <div class="col">
+    <div class="topbar"><h2 id="myTitle"></h2><button id="myBack" class="btn ghost songs-btn">Back</button></div>
+    <ul id="myRes" class="song-res"></ul>
+    <p id="myEmpty" class="small" hidden></p>
+  </div>
+</section>
+
 <!-- מסך שיר -->
 <section id="song" class="screen" hidden>
   <div class="col">
@@ -488,6 +500,7 @@ fieldset.row legend{float:left;padding:0}
       <button id="btnA" class="btn primary">A · Play the changes</button>
       <button id="btnB" class="btn ghost">B · Practice one change</button>
       <button id="btnC" class="btn ghost">C · Play the song</button>
+      <button id="btnLearn" class="btn ghost">Add to Learning</button>
     </div>
   </div>
 </section>
@@ -518,6 +531,7 @@ fieldset.row legend{float:left;padding:0}
       <div id="sheetEnd" hidden>
         <p>You played the whole song!</p>
         <button id="shAgain" class="btn primary">Again</button>
+        <button id="shKnow" class="btn ghost">Add to Songs I know</button>
         <button id="shBack" class="btn ghost">Back</button>
       </div>
     </div>
@@ -947,6 +961,7 @@ var Songs = (function () {
     ['changes', 'songBest', 'pairBest'].forEach(function (k) { if (!d[k] || typeof d[k] !== 'object' || Array.isArray(d[k])) d[k] = {}; });
     if (!d.c41 || typeof d.c41 !== 'object' || Array.isArray(d.c41)) d.c41 = {};
     if (!d.check || typeof d.check !== 'object' || Array.isArray(d.check)) d.check = {};
+    ['known', 'learning'].forEach(function (k) { if (!Array.isArray(d[k])) d[k] = []; });
     d.set = Object.assign({ level: 'normal', lefty: false, noTimer: false, sound: true, allOpen: false }, d.set || {});
     if (!E.LEVELS[d.set.level]) d.set.level = 'normal';
     return d;
@@ -965,7 +980,7 @@ var Songs = (function () {
   }
 
   // ---- מסכים ----
-  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet'];
+  var SCREENS = ['home', 'levels', 'count', 'play', 'results', 'checkScr', 'c41Scr', 'testsScr', 'songs', 'song', 'changes', 'sheet', 'myList'];
   var mode = 'home';
   function show(id) { mode = id; SCREENS.forEach(function (s) { $('#' + s).hidden = s !== id; }); }
   var toastTimer = 0;
@@ -1245,7 +1260,7 @@ var Songs = (function () {
   $('#restartBtn').addEventListener('click', function () { hideOverlays(); stopLoop(); begin(R.g); });
   $('#quitBtn').addEventListener('click', function () {
     hideOverlays(); stopLoop(); releaseWake();
-    if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
+    if (R && R.kind === 'sheet' && songFrom === 'known') openMy('known'); else if (R && R.song) show('song'); else { renderLevels(); show('levels'); }
     R = null;
   });
   document.addEventListener('visibilitychange', function () {
@@ -1305,7 +1320,7 @@ var Songs = (function () {
     r.forEach(function (s) {
       var li = document.createElement('li'), b = document.createElement('button');
       b.dir = 'rtl'; b.textContent = s.title + ' · ' + s.artist;
-      b.addEventListener('click', function () { openSong(s); });
+      b.addEventListener('click', function () { songFrom = null; openSong(s); });
       li.appendChild(b); ul.appendChild(li);
     });
   }
@@ -1332,7 +1347,7 @@ var Songs = (function () {
       box.appendChild(c);
     });
     $('#btnA').disabled = one; $('#btnB').disabled = one; $('#songOne').hidden = !one;
-    show('song');
+    markLearn(); show('song');
   }
   // ---- שלב ג: הדף של השיר. האקורדים באותו סדר כמו song.sequence, ולא נרשמות מדידות ----
   var shEls = [];
@@ -1365,7 +1380,7 @@ var Songs = (function () {
   function sheetNext() {
     if (R.idx >= R.n) { // סוף השיר
       stopLoop(); releaseWake(); R.state = 'done';
-      $('#sheetName').hidden = true; $('#sheetNeck').hidden = true; $('#shPause').hidden = true; $('#sheetEnd').hidden = false;
+      $('#sheetName').hidden = true; $('#sheetNeck').hidden = true; $('#shPause').hidden = true; $('#sheetEnd').hidden = false; markKnow();
       return;
     }
     R.chord = R.song.sequence[R.idx]; R.info = E.chordInfo(R.chord);
@@ -1391,7 +1406,50 @@ var Songs = (function () {
   $('#btnC').addEventListener('click', function () { begin('sheet'); });
   $('#chSong').addEventListener('click', function () { begin('sheet'); });
   $('#shAgain').addEventListener('click', function () { begin('sheet'); });
-  $('#shBack').addEventListener('click', function () { show('song'); });
+
+  // ---- שירים שאני יודע / שירים בלמידה. שיר נמצא לכל היותר באחת משתי הרשימות ----
+  var songFrom = null; // 'known' / 'learning' כשהשיר נפתח מאחת הרשימות
+  function moveSong(id, to) {
+    var from = to === 'known' ? 'learning' : 'known';
+    data[from] = data[from].filter(function (x) { return x !== id; });
+    if (data[to].indexOf(id) < 0) data[to].unshift(id);
+    save();
+  }
+  function markLearn() {
+    var b = $('#btnLearn'), on = data.learning.indexOf(curSong.id) >= 0;
+    b.disabled = on; b.textContent = on ? 'In Learning ✓' : 'Add to Learning';
+  }
+  function markKnow() {
+    var b = $('#shKnow'), on = data.known.indexOf(curSong.id) >= 0;
+    b.disabled = on; b.textContent = on ? 'In Songs I know ✓' : 'Add to Songs I know';
+  }
+  $('#btnLearn').addEventListener('click', function () {
+    if (data.known.indexOf(curSong.id) >= 0 && !confirm('You already learned this song. Learn it again?')) return;
+    moveSong(curSong.id, 'learning'); markLearn(); toast('Added to Learning');
+  });
+  $('#shKnow').addEventListener('click', function () { moveSong(curSong.id, 'known'); markKnow(); toast('Added to Songs I know'); });
+  function openMy(which) {
+    var known = which === 'known';
+    $('#myTitle').textContent = known ? 'Songs I know' : 'Learning';
+    $('#myRes').innerHTML = ''; $('#myEmpty').hidden = true; show('myList');
+    if (!data.songKey) { $('#myEmpty').textContent = 'Add the song book first (Songs).'; $('#myEmpty').hidden = false; return; }
+    loadSongs().then(function (list) {
+      var byId = {}; list.forEach(function (s) { byId[s.id] = s; });
+      var ids = data[which].filter(function (id) { return byId[id]; });
+      if (!ids.length) { $('#myEmpty').textContent = known ? 'Finish a song in part C to add it here.' : 'Open a song and tap Add to Learning.'; $('#myEmpty').hidden = false; }
+      ids.forEach(function (id) {
+        var s = byId[id], li = document.createElement('li'), b = document.createElement('button');
+        b.dir = 'rtl'; b.textContent = s.title + ' · ' + s.artist;
+        // שיר שאני יודע נפתח ישר בשלב ג. שיר בלמידה נפתח במסך השיר, עם א, ב, ג
+        b.addEventListener('click', function () { songFrom = which; if (known) { curSong = s; begin('sheet'); } else openSong(s); });
+        li.appendChild(b); $('#myRes').appendChild(li);
+      });
+    }, function () { $('#myEmpty').textContent = "Can't load the songs. Try again."; $('#myEmpty').hidden = false; });
+  }
+  $('#knownBtn').addEventListener('click', function () { openMy('known'); });
+  $('#learnBtn').addEventListener('click', function () { openMy('learning'); });
+  $('#myBack').addEventListener('click', function () { renderLevels(); show('levels'); });
+  $('#shBack').addEventListener('click', function () { if (songFrom === 'known') openMy('known'); else { markLearn(); show('song'); } });
 
   // ---- מסך המעברים, בסוף סבב של שיר ----
   function showChanges() {
@@ -1429,7 +1487,7 @@ var Songs = (function () {
   $('#chBack').addEventListener('click', function () { show('song'); });
   $('#songsBtn').addEventListener('click', openSongs);
   $('#songsBack').addEventListener('click', function () { renderLevels(); show('levels'); });
-  $('#songBack').addEventListener('click', function () { show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
+  $('#songBack').addEventListener('click', function () { if (songFrom === 'learning') openMy('learning'); else show('songs'); }); // בלי לנקות חיפוש ובלי מקלדת
   $('#songQuery').addEventListener('input', renderResults);
   $('#bookFile').addEventListener('change', function (ev) {
     var f = ev.target.files[0]; ev.target.value = '';
