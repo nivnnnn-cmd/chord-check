@@ -1847,7 +1847,7 @@ var Songs = (function () {
     if (hz) { TU.hist.push(hz); if (TU.hist.length > 5) TU.hist.shift(); TU.heard = now; }
     else if (now - TU.heard > 400) TU.hist = [];
     if (!TU.hist.length) { $('#tuneNote').classList.add('idle'); $('#tuneNeedle').classList.remove('on'); $('#tuneHint').innerHTML = '&nbsp;'; $('#tuneWhich').innerHTML = '&nbsp;'; TU.inSince = 0; return; }
-    var med = TU.hist.slice().sort(function (a, b) { return a - b; })[TU.hist.length >> 1], r = Tuner.nearest(med), inTune = Math.abs(r.cents) < 2; // כמו מכוון מקצועי. 5 סנט זה כבר על הגבול של מה שאוזן שומעת
+    var med = TU.hist.slice().sort(function (a, b) { return a - b; })[TU.hist.length >> 1], r = Tuner.nearest(med), inTune = Math.abs(r.cents) < 5; // כמו הטווח "מספיק טוב" של מכווני טלפון ומכווני קליפס פשוטים. 2 סנט היה קשה מדי למתחילים
     $('#tuneWhich').textContent = TUNE_WHICH[r.string];
     $('#tuneNote').textContent = r.name; $('#tuneNote').className = 'tune-note' + (inTune ? ' ok' : '');
     var nd = $('#tuneNeedle'); nd.className = 'tune-needle on' + (inTune ? ' ok' : '');
@@ -1856,7 +1856,7 @@ var Songs = (function () {
     Array.prototype.forEach.call(chips, function (c, i) { c.classList.toggle('now', i === r.string); });
     if (!inTune) { TU.inSince = 0; return; }
     if (!TU.inSince) TU.inSince = now;
-    if (now - TU.inSince > 500 && !TU.ok[r.string]) {
+    if (now - TU.inSince > 300 && !TU.ok[r.string]) { // מיתר שדועך זז קצת, אז לא דורשים החזקה ארוכה
       TU.ok[r.string] = 1; chips[r.string].classList.add('ok'); chime([1568]);
       if (TU.ok.every(Boolean)) { var d = $('#tuneDone'); d.textContent = 'Tuned ✓'; d.className = 'btn primary'; TU.doneAt = now + 1200; }
     }
